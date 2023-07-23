@@ -1,5 +1,5 @@
-in_fna=./test.fna
-out_fna=./test.formatted.fna
+#in_fna=./test.fna
+#out_fna=./test.formatted.fna
 
 in_fna=../data/genomes/all_viruses.220723.filt.fna
 out_fna=../data/genomes/all_viruses.220723.filt.formatted.fna

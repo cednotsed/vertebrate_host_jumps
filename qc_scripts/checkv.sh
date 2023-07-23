@@ -1,5 +1,5 @@
-db=../databases/checkv-db-v1.2/
-in_path=../data/genomes/assembly_scaffolds/pooled_contigs_gt500.MHV_filt.fna
+db=../databases/checkv-db-v1.5/
+in_path=../data/genomes/all_viruses.220723.filt.formatted.fna
 out_dir=../results/checkv_out
 
 checkv end_to_end \

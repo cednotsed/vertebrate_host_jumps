@@ -5,7 +5,7 @@
 #out_dir=../data/genomes/all_viruses.genbank_complete_excllabhost_exclvaccine.191222.sars_filt
 
 # For missing files
-acc_list=../data/metadata/all_viruses.220723.filt.accessions_only.txt
+acc_list=../data/metadata/missing_genomes.accessions_only.txt
 out_dir=../data/genomes/all_viruses.220723.filt
 
 # Check rows

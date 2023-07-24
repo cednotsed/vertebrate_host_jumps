@@ -1,88 +1,99 @@
-setwd("c:/git_repos/viral_sharing/")
+setwd("c:/git_repos/vertebrate_host_jumps/")
 require(data.table)
 require(tidyverse)
 require(foreach)
 require(Biostrings)
 
-meta <- fread("data/metadata/all_viruses.140423.filt.csv")
-
-spec_to_remove <- deframe(meta %>% 
-  distinct(species) %>%
-  filter(grepl("Gokushovirinae environmental samples|Temperate fruit|Gossypium|Emaravirus|Stralarivirus|Rice ragged|Nerrivikvirus|Peanut|Cucurbit|Cacao|Pea necrotic|white spot|Bhendi yellow|Prokaryotic|Macroptilium|Camellia|Chickpea|Beet|Chrysanthemum|avocado|Tobacco|southern rice|strawberry|prunus|Shallot|Rice stripe tenuivirus|Broad bean|sugarcane|Beet curly top virus|onion|Prune dwarf virus|garlic|Blainvillea|Faba bean|banana|Digitaria streak|Hop stunt|wheat|Leek yellow stripe virus|Rice black streaked|leaf|grapevine|pepper|plum|melon|Cardamom|polar freshwater|peach|cherry|tomato|potato|citrus|cucumber|apple|mosaic|maize", species, ignore.case = T)))
-
-meta_filt <- meta %>% 
-  filter(!grepl("Cystoviridae|Partitiviridae|Marnaviridae|Cystoviridae|Becurtovirus|Sobemovirus|Begomovirus|Mitoviridae|Caudovirales|Gokushovirinae|Totiviridae|Inovirus|Botourmiaviridae|Narnaviridae|Leviviridae|Myoviridae|siphoviridae|Geminiviridae|Genomoviridae|Nanoviridae|Microviridae|Microvirus|Rice|phage|Inoviridae", species, ignore.case = T)) %>%
-  filter(!grepl("Zanthoxylum|Haloquadratum|Areca catechu|Petroselinum|Ageratum|Brassica|Sophora|Medicago|Sulfolobus|Vigna|Sida acuta|Solanum", host)) %>% 
-  filter(!(species %in% spec_to_remove)) %>%
-  filter(host != "")
-
-aai_df <- fread("results/checkv_out/all_viruses.140423.filt/completeness.tsv") %>%
+# Merge quality summary
+qual_df <- fread("results/checkv_out/quality_summary.tsv") %>%
+  bind_rows(fread("results/checkv_out/missing/quality_summary.tsv")) %>%
   dplyr::rename(accession = contig_id) %>%
-  right_join(meta_filt)
+  distinct()
 
-to_keep <- c("Poxviridae", "Herpesviridae", "Picornaviridae",
-             "Peribunyaviridae", "Birnaviridae", "Circoviridae",
-             "Rhabdoviridae", "Hantaviridae", "Polyomaviridae",
-             "Paramyxoviridae", "Bornaviridae", "Filoviridae",
-             "Nairoviridae", "Spinareoviridae", "Sedoreoviridae",
-             "Phenuiviridae", "Arenaviridae", "Parvoviridae",
-             "Redondoviridae", "Adenoviridae", "Togaviridae",
-             "Orthomyxoviridae", "Arteriviridae", "Coronaviridae",
-             "Tobaniviridae", "Nanhypoviridae", "Olifoviridae",
-             "Gresnaviridae", "Nanghoshaviridae", "Cremegaviridae",
-             "Caliciviridae", "Asfarviridae", "Alloherpesviridae",
-             "Astroviridae", "Flaviviridae", "Retroviridae",
-             "Nyamiviridae", "Metaviridae", "Hepadnaviridae",
-             "Genomoviridae", "Smacoviridae", "Picobirnaviridae",
-             "Reoviridae", "Anelloviridae", "Papillomaviridae",
-             "Adomaviridae", "Hepeviridae", "Kolmioviridae",
-             "Pneumoviridae", "Amnoonviridae", "Nodaviridae",
-             "Matonaviridae", "Pseudoviridae")
+meta <- fread("data/metadata/all_viruses.220723.filt.csv")
 
-genome_filt <- aai_df %>%
-  filter(family %in% to_keep) %>%
-  filter(aai_completeness > 95) %>%
+merged <- meta %>%
+  left_join(qual_df)
+
+# Check for missing genomes
+merged %>% 
+  filter(is.na(contig_length)) %>%
+  nrow()
+
+# Check for duplicates
+sum(duplicated(merged$accession))
+# # Visualise contamination and completeness
+# merged %>%
+#   ggplot(aes(x = completeness)) +
+#   geom_histogram(bins = 100)
+# 
+# merged %>%
+#   ggplot(aes(x = contamination)) +
+#   geom_histogram(bins = 100)
+
+# Filter genomes
+merged_filt <- merged %>%
+  filter(contamination < 5) %>%
+  filter((completeness > 95 & !is_segmented) | is_segmented) %>%
+  # Parse collection dates
+  separate(collection_date, into = c("Y", "M", "D"), sep = "-", remove = F) %>%
+  filter(Y != "") %>%
+  filter(!is.na(Y)) %>%
+  mutate(D = ifelse(!is.na(M) & is.na(D), "15", D)) %>%
+  mutate(M = ifelse(is.na(M) & is.na(D), "06", M)) %>%
+  mutate(D = ifelse(is.na(D), "01", D)) %>%
+  mutate(imputed_date = as.Date(str_glue("{Y}-{M}-{D}"), "%Y-%m-%d")) %>%
+  select(-Y, -M, -D) %>%
+  # Filter columns
   select(accession, genbank_title, family, 
          genus, species, host, 
-         isolation_source, collection_date, imputed_date, 
-         country)
+         isolation_source, imputed_date, country,
+         genome_length = length)
 
-large <- deframe(genome_filt %>%
+# Filter by genome count (AGAIN!)
+genome_counts <- merged_filt %>%
   group_by(family) %>%
   summarise(n = n()) %>%
-  arrange(desc(n)) %>% 
-  filter(n > 500) %>%
-  distinct(family))
+  filter(n >= 100)
 
-others <- genome_filt %>%
+merged_filt2 <- merged_filt %>%
+  filter(family %in% genome_counts$family)
+
+# Check final family counts
+plot_df <- merged_filt2 %>%
   group_by(family) %>%
   summarise(n = n()) %>%
-  arrange(desc(n)) %>% 
-  filter(n <= 500)
+  arrange(desc(n))
 
-fna <- readDNAStringSet("data/genomes/all_viruses.140423.filt.fna")
+plot_df %>%
+  mutate(family = factor(family, unique(plot_df$family))) %>%
+  ggplot(aes(x = family, y = n, fill = family)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Viral family", y = "No. genomes")
+
+ggsave("results/qc_out/family_genome_counts.pdf", width = 8, height = 5)
+
+# host_plts <- merged_filt2 %>%
+#   group_by(family, host) %>%
+#   summarise(n = n()) %>%
+#   ggplot(aes(x = host, y = n)) +
+#   facet_wrap(~family) +
+#   geom_bar(stat = "identity")
+
+# Write filtered metadata
+fwrite(merged_filt2, "data/metadata/all_viruses.220723.filt.QCed.csv")
+
+# Read genomes
+fna <- readDNAStringSet("data/genomes/all_viruses.220723.filt.formatted.fna")
+
+# Parse genome names
 names(fna) <- str_split(names(fna), " ", simplify = T)[, 1]
 
-fna_filt <- fna[names(fna) %in% genome_filt$accession]
-nrow(genome_filt) == length(fna_filt)
+fna_filt <- fna[names(fna) %in% merged_filt2$accession]
+nrow(merged_filt2) == length(fna_filt)
 
-fwrite(genome_filt, "data/metadata/all_viruses.140423.filt.QCed.csv")
-writeXStringSet(fna_filt, "data/genomes/all_viruses.140423.filt.QCed.fna")
+writeXStringSet(fna_filt, "data/genomes/all_viruses.220723.filt.formatted.QCed.fna")
 
-## AFTER FORMATTING ##
-fna_filt2 <- readDNAStringSet("data/genomes/all_viruses.140423.filt.QCed.formatted.fna")
-
-foreach(fam = large) %do% {
-  temp_filt <- genome_filt %>%
-    filter(family == fam)
-  
-  temp_fna <- fna_filt2[names(fna_filt2) %in% temp_filt$accession]  
-  writeXStringSet(temp_fna, str_glue("data/genomes/viral_family_subsets/{fam}.140423.filt.QCed.formatted.fna"))
-}
-
-# Others
-others_filt <- genome_filt %>%
-  filter(family %in% others$family)
-
-others_fna <- fna_filt2[names(fna_filt2) %in% others_filt$accession]  
-writeXStringSet(others_fna, str_glue("data/genomes/viral_family_subsets/others.140423.filt.QCed.formatted.fna"))
+sum(duplicated(names(fna)))

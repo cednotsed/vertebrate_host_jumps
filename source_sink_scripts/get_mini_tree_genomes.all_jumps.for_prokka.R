@@ -78,7 +78,7 @@ for(cluster_name in unique(parsed_filt$cluster)) {
                        min_dist = col_min) %>%
     arrange(min_dist) %>%
     head(buffer)
-
+  
   to_keep <- c(col_min_df$acc, cluster_accs)
   
   fna_filt <- fna[names(fna) %in% to_keep]

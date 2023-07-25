@@ -1,8 +1,12 @@
-genome_dir=../data/genomes/viral_family_subsets
-out_dir=../results/mash_out/viral_family_subsets
+#genome_dir=../data/genomes/viral_family_subsets
+#out_dir=../results/mash_out/viral_family_subsets
+
+genome_dir=../data/genomes/source_sink_mini_trees/with_buffer_outgroup
+out_dir=../results/mash_out/source_sink_mini_trees/with_buffer_outgroup
+
 n_threads=12
 
-for in_fna in $genome_dir/Anello*.fna
+for in_fna in $genome_dir/*.fna
 do
 	echo $in_fna
 

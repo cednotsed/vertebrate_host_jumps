@@ -185,7 +185,14 @@ print(str_glue("Final filtered viruses: {nrow(final_merged)}"))
 # Check if script made duplicates
 all(final_merged$accession == unique(final_merged$accession))
 
+# Annotate circular genomes
+segmented_family <- c("Arenaviridae", "Birnaviridae", "Peribunyaviridae",
+                        "Orthomyxoviridae", "Picobirnaviridae", "Reoviridae")
+circular_family <- c("Anelloviridae", "Circoviridae", "Genomoviridae",
+                     "Hepadnaviridae", "Smacoviridae")
 final_merged %>%
+  mutate(is_segmented = ifelse(family %in% segmented_family, T, F),
+         is_circular = ifelse(family %in% circular_family, T, F)) %>%
   fwrite("data/metadata/all_viruses.220723.filt.csv")
 
 final_merged %>%

@@ -48,7 +48,8 @@ merged_filt <- merged %>%
   select(accession, genbank_title, family, 
          genus, species, host, 
          isolation_source, imputed_date, country,
-         genome_length = length)
+         genome_length = length, molecule_type, is_segmented,
+         is_circular)
 
 # Filter by genome count (AGAIN!)
 genome_counts <- merged_filt %>%

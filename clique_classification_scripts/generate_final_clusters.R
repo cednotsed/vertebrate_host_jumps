@@ -11,6 +11,8 @@ require(Hmisc)
 threshold <- 0.15
 meta <- fread("data/metadata/all_viruses.220723.filt.QCed.csv")
 
+set.seed(66)
+
 to_do <- unique(meta$family)
 mash_list <- list.files("results/mash_out/viral_family_subsets/", 
                         "\\.tsv",
@@ -59,4 +61,13 @@ final_meta %>%
   summarise(n = n_distinct(cluster)) %>%
   arrange(desc(n))
 
-fwrite(final_meta, "results/clique_classification_out/final_cluster_metadata.220723.csv")
+# fwrite(final_meta, "results/clique_classification_out/final_cluster_metadata.220723.new.csv")
+
+# # Append columns
+# to_add <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%
+#   select(accession, molecule_type, is_segmented, is_circular)
+# final_meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
+#   left_join(to_add)
+# 
+# final_meta %>%
+#   fwrite("results/clique_classification_out/final_cluster_metadata.220723.csv")

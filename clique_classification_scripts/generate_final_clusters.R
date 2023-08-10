@@ -65,9 +65,11 @@ final_meta %>%
 
 # # Append columns
 # to_add <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%
-#   select(accession, molecule_type, is_segmented, is_circular)
-# final_meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-#   left_join(to_add)
+#   select(accession, molecule_type, is_segmented, is_circular, host)
 # 
-# final_meta %>%
-#   fwrite("results/clique_classification_out/final_cluster_metadata.220723.csv")
+# final_meta <- fread("results/clique_classification_out/archive/final_cluster_metadata.220723.backup.csv")
+# 
+# added <- final_meta %>%
+#   select(-host_genus, -host_species) %>%
+#   left_join(to_add)
+#   fwrite(added, "results/clique_classification_out/final_cluster_metadata.220723.csv")

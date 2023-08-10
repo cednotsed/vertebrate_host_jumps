@@ -1,8 +1,10 @@
 #genome_dir=../data/genomes/viral_family_subsets
 #out_dir=../results/mash_out/viral_family_subsets
 
-genome_dir=../data/genomes/source_sink_mini_trees/with_buffer_outgroup
-out_dir=../results/mash_out/source_sink_mini_trees/with_buffer_outgroup
+genome_dir=../data/genomes/source_sink_mini_trees/with_buffer_outgroup.even_further
+out_dir=../results/mash_out/source_sink_mini_trees/with_buffer_outgroup.even_further
+
+mkdir $out_dir
 
 n_threads=12
 

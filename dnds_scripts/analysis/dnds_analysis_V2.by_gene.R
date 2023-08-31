@@ -47,10 +47,10 @@ dnds_df %>%
 
 # Remove zeroes
 dnds_filt <-  dnds_df %>%
-  c %>%
-  #   mutate(ka = ifelse(ka <= 0, 0, ka),
-  #          ks = ifelse(ks <= 0, 0, ks)) %>%
-  # filter(ka != 0 & ks != 0) %>%
+  # c %>%
+    mutate(ka = ifelse(ka <= 0, 0, ka),
+           ks = ifelse(ks <= 0, 0, ks)) %>%
+  filter(ka != 0 & ks != 0) %>%
   mutate(log_kaks = log10(ka / ks))
 
 # Replace zeroes

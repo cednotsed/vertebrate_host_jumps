@@ -11,13 +11,12 @@ require(doParallel)
 meta <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%
   mutate(species = tolower(species))
 
-tax_meta <- fread("data/VIRION.v0.2.1_240922/TaxonomyVirus.csv") %>% 
-  # filter(ICTVRatified) %>%
-  select(species = Virus)
+tax_meta <- fread("data/metadata/ICTV_Master_Species_List_2022_MSL38.v2.060823.csv") %>% 
+  select(species = Species) %>%
+  mutate(species = tolower(species))
 
-head(tax_meta) %>% View()
-done <- list.files("results/clique_classification_out/clustering_metrics/", ".csv")
-done <- gsub(".AMI_ARI.csv", "", done)
+done <- list.files("results/clique_classification_out/clustering_metrics/", "ICTV.csv")
+done <- gsub(".AMI_ARI.ICTV.csv", "", done)
 done
 
 mat_list <- list.files("results/mash_out/viral_family_subsets/", "\\.tsv", full.names = T)
@@ -97,16 +96,15 @@ fam_morsels <- foreach(fam = to_do$family,
              ari = ari_genus,
              n_taxa = n_distinct(meta.match$genus),
              n_clusters = n_distinct(meta.match$cluster)))
-}
+  }
   
   plot_df <- bind_rows(morsels) %>%
     mutate(family = fam)
     
   fwrite(plot_df, 
-         str_glue("results/clique_classification_out/clustering_metrics/{fam}.AMI_ARI.csv"))
+         str_glue("results/clique_classification_out/clustering_metrics/{fam}.AMI_ARI.ICTV.csv"))
   
   return(plot_df)
 }
 
-# stopCluster(cl)
 

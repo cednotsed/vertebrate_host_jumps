@@ -4,11 +4,28 @@ require(tidyverse)
 require(data.table)
 require(ggrepel)
 
-meta <- fread("data/metadata/all_viruses.taxid10239.excl_provirus_env_lab_vax.gt1000nt.220723.csv") %>%
+meta <- fread("data/metadata/all_viruses.taxid10239.excl_provirus_env_lab_vax.220723.V2.csv") %>%
   rename_all(~tolower(gsub(" ", "_", .x))) %>%
   filter(host != "") %>%
   left_join(fread("data/metadata/parsed_host_metadata.csv"))
+
 genome_meta <- fread("data/metadata/all_viruses.220723.filt.QCed.csv")
+
+# Proportion of viruses by type
+meta %>%
+  filter(!grepl("Severe acute respiratory syndrome coronavirus 2|SARS-CoV-2", 
+                 genbank_title,
+                 ignore.case = T))
+  # mutate(molecule_type = ifelse(molecule_type %in% c("", "unknown"), 
+  #                               "dsDNA", 
+  #                               molecule_type)) %>%
+  mutate(molecule_type = case_when(grepl("dsDNA", molecule_type) ~ "dsDNA",
+                                   grepl("ssDNA", molecule_type) ~ "ssDNA",
+                                   grepl("dsRNA", molecule_type) ~ "dsRNA",
+                                   grepl("ssRNA", molecule_type) ~ "ssRNA")) %>%
+  group_by(molecule_type) %>%
+  summarise(n = n()) %>%
+  mutate(prop = n / sum(n))
 
 to_keep <- c("Poxviridae", "Herpesviridae", "Picornaviridae",
              "Peribunyaviridae", "Birnaviridae", "Circoviridae",
@@ -75,6 +92,7 @@ meta_filt %>%
 genome_meta %>%
   left_join(fread("data/metadata/parsed_host_metadata.csv")) %>%
   distinct(species)
+
 filter(is_vertebrate) %>%
   # group_by(family) %>%
   summarise(n = n_distinct(family)) %>% View()

@@ -25,8 +25,8 @@ fna_filt <- DNAStringSet(apply(fna_filt, 1, paste0, collapse = ""))
 
 window <- 150
 
-cl <- makeCluster(16)
-registerDoParallel(cl)
+# cl <- makeCluster(16)
+# registerDoParallel(cl)
 
 # morsels <- foreach(i = seq(1, length(fna_filt) - 1, 2), 
 #                    .packages = c("Biostrings", "tidyverse", "foreach",
@@ -132,11 +132,20 @@ plot_df %>%
   facet_grid(is_jump ~ .) +
   geom_boxplot() + 
   theme_classic() +
-  geom_pwc() +
+  geom_pwc(na.rm = T) +
   theme(legend.position = "none") +
   labs(x = "Is RBD?", 
        y = "log10(dn/ds)") +
   coord_flip()
+
+# Get statistics
+test <- plot_df %>%
+  left_join(jump_df) %>%
+  mutate(is_rbd = ifelse(domain == "RBD", T, F)) %>%
+  filter(!is_jump) %>%
+  filter(!is.na(log_kaks))
+
+wilcox.test(test$log_kaks ~ test$is_rbd)
 
 ggsave("results/dnds_out/family_plots/CoV2_dnds.boxplot.pdf", dpi = 600, width = 5, height = 7)
   

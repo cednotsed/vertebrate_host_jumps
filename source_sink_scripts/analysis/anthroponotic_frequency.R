@@ -26,25 +26,35 @@ jump_df <- fread("results/mutational_load_out/putative_host_jumps.csv") %>%
   as_tibble() %>%
   filter(clique_name %in% good_alns$clique_name)
 
-# Get unique jumps for each host pair and direction
-# jump_list <- jump_df %>%
-#   distinct(clique_name, anc_state, tip_state)
-#
-# jump_morsels <- foreach(i = seq(nrow(jump_list))) %do% {
-#   # i = 1
-#   row <- jump_list[i, ]
-#   clique_name <- row$clique_name
-#   anc_host <- row$anc_state
-#   tip_host <- row$tip_state
-#   jump_df %>%
-#     filter(clique_name == clique_name,
-#            anc_state == anc_host,
-#            tip_state == tip_host) %>%
-#     arrange(prop_traverse) %>%
-#     head(1)
-# }
+# Count distinct nodes
+iter_df <- jump_df %>% distinct(clique_name, anc_state, tip_state)
 
-# jump_parsed <- bind_rows(jump_morsels)
+jump_filt <- foreach(i = seq(nrow(iter_df)), .combine = "bind_rows") %do% {
+  # i = 1
+  row <- iter_df[i, ]
+  anc <- row$anc_state
+  tip <- row$tip_state
+  clique <- row$clique_name
+  
+  temp_filt <- jump_df %>%
+    filter(clique_name == clique,
+           anc_state == anc,
+           tip_state == tip) %>%
+    distinct(anc_name, .keep_all = T)
+  
+  return(temp_filt)
+}
+
+# No. of distinct host jumps
+jump_filt %>%
+  nrow()
+
+# Prop. of human jumps
+jump_filt %>%
+  left_join(host_meta %>% select(anc_state = host, host1_genus = host_genus)) %>%
+  left_join(host_meta %>% select(tip_state = host, host2_genus = host_genus)) %>%
+  filter(host1_genus == "Homo"| host2_genus == "Homo") %>%
+  nrow()
 
 zoo_df <- jump_df %>%
   mutate(anc_state = ifelse(anc_state %in% c("Homo", "Homo sapiens"), 
@@ -149,7 +159,16 @@ zoo_df %>%
   summarise(prop_anthro = sum(event_type == "Anthroponotic") / n())
 # Bootstrap zoonotic proportion
 zoo_filt <- zoo_df %>%
-  distinct(clique_name, anc_state, tip_state, event_type)
+  distinct(clique_name, anc_state, tip_state, event_type, .keep_all = T)
+
+zoo_filt
+# zoo_df %>%
+#   group_by(clique_name) %>%
+#   summarise(is_anthro = any(event_type == "Anthroponotic"),
+#             is_zoo = any(event_type == "Zoonotic")) %>%
+#   ungroup() %>%
+#   summarise(prop_anthro = sum(is_anthro) / n(),
+#             prop_zoo = sum(is_zoo) / n())
 
 obs_df <- zoo_filt %>%
   group_by(event_type) %>%
@@ -157,73 +176,73 @@ obs_df <- zoo_filt %>%
   mutate(prop = n_jumps / sum(n_jumps))
 
 obs_df
-
-clique_list <- unique(zoo_filt$clique_name)
-
-set.seed(66)
-cl <- makeCluster(12)
-registerDoParallel(cl)
-
-boot_morsels <- foreach(i = seq(1000),
-                        .packages = c("foreach", "tidyverse")) %dopar% {
-                          clique_temp <- sample(clique_list, length(clique_list), replace = T)
-                          
-                          temp_morsels <- foreach(clique_name = clique_list) %do% {
-                            zoo_filt %>%
-                              filter(clique_name == clique_name)
-                          }
-                          
-                          temp_df <- bind_rows(temp_morsels) %>%
-                            sample_n(nrow(zoo_filt), replace = T) %>%
-                            group_by(event_type) %>%
-                            summarise(n_jumps = n()) %>%
-                            pivot_wider(names_from = "event_type", values_from = "n_jumps")
-                          
-                          return(temp_df)
-                        }
-
-stopCluster(cl)
-
-zoo_boot_df <- bind_rows(boot_morsels)
-
-zoo_plot_df <- zoo_boot_df %>%
-  pivot_longer(everything(), 
-               names_to = "event_type", 
-               values_to = "n_jumps")
-
-CI_df <- zoo_plot_df %>%
-  group_by(event_type) %>%
-  summarise(low_bound = quantile(n_jumps, probs = 0.025), 
-            high_bound = quantile(n_jumps, probs = 0.975))
-
-# Add t test results
-t_test <- t.test(zoo_boot_df$Anthroponotic , zoo_boot_df$Zoonotic,
-                 paired = T, 
-                 alternative = "two.sided")
-
-t_val <- signif(t_test$statistic, 3)
-deg_freedom <- t_test$parameter
-p_val<- signif(t_test$p.value, 3)
-
-zoo_plot_df %>%
-  ggplot(aes(x = event_type, y = n_jumps, fill = event_type)) +
-  geom_violin(alpha = 0.5) +
-  geom_point(data = obs_df, 
-             aes(x = event_type),
-             size = 3) +
-  geom_segment(data = CI_df,
-               aes(x = event_type, xend = event_type, 
-                   y = low_bound, yend = high_bound)) +
-  theme_classic() +
-  theme(legend.position = "none",
-        axis.title = element_text(face = "bold")) +
-  labs(x = "Transmission type", y = "No. of host jumps",
-       title = str_glue("Paired t-test: t = {t_val}, d.f.={deg_freedom}, p={p_val}"))
-
-ggsave("results/source_sink_analysis/anthroponotic_frequency.pdf", 
-       dpi = 600, 
-       width = 6,
-       height = 3)
+# 
+# clique_list <- unique(zoo_filt$clique_name)
+# 
+# set.seed(66)
+# cl <- makeCluster(12)
+# registerDoParallel(cl)
+# 
+# boot_morsels <- foreach(i = seq(1000),
+#                         .packages = c("foreach", "tidyverse")) %dopar% {
+#                           clique_temp <- sample(clique_list, length(clique_list), replace = T)
+#                           
+#                           temp_morsels <- foreach(clique_name = clique_list) %do% {
+#                             zoo_filt %>%
+#                               filter(clique_name == clique_name)
+#                           }
+#                           
+#                           temp_df <- bind_rows(temp_morsels) %>%
+#                             sample_n(nrow(zoo_filt), replace = T) %>%
+#                             group_by(event_type) %>%
+#                             summarise(n_jumps = n()) %>%
+#                             pivot_wider(names_from = "event_type", values_from = "n_jumps")
+#                           
+#                           return(temp_df)
+#                         }
+# 
+# stopCluster(cl)
+# 
+# zoo_boot_df <- bind_rows(boot_morsels)
+# 
+# zoo_plot_df <- zoo_boot_df %>%
+#   pivot_longer(everything(), 
+#                names_to = "event_type", 
+#                values_to = "n_jumps")
+# 
+# CI_df <- zoo_plot_df %>%
+#   group_by(event_type) %>%
+#   summarise(low_bound = quantile(n_jumps, probs = 0.025), 
+#             high_bound = quantile(n_jumps, probs = 0.975))
+# 
+# # Add t test results
+# t_test <- t.test(zoo_boot_df$Anthroponotic , zoo_boot_df$Zoonotic,
+#                  paired = T, 
+#                  alternative = "two.sided")
+# 
+# t_val <- signif(t_test$statistic, 3)
+# deg_freedom <- t_test$parameter
+# p_val<- signif(t_test$p.value, 3)
+# 
+# zoo_plot_df %>%
+#   ggplot(aes(x = event_type, y = n_jumps, fill = event_type)) +
+#   geom_violin(alpha = 0.5) +
+#   geom_point(data = obs_df, 
+#              aes(x = event_type),
+#              size = 3) +
+#   geom_segment(data = CI_df,
+#                aes(x = event_type, xend = event_type, 
+#                    y = low_bound, yend = high_bound)) +
+#   theme_classic() +
+#   theme(legend.position = "none",
+#         axis.title = element_text(face = "bold")) +
+#   labs(x = "Transmission type", y = "No. of host jumps",
+#        title = str_glue("Paired t-test: t = {t_val}, d.f.={deg_freedom}, p={p_val}"))
+# 
+# ggsave("results/source_sink_analysis/anthroponotic_frequency.pdf", 
+#        dpi = 600, 
+#        width = 4,
+#        height = 3)
 
 zoo_df %>%
   filter(event_type == "Anthroponotic") %>%

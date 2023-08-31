@@ -40,6 +40,7 @@ dnds_df <- foreach(file_name = dnds_list, .combine = c("bind_rows")) %do% {
 dnds_filt <-  dnds_df %>%
   mutate(ks = ifelse(ks == 0 | ks < 0, 0, ks),
                    ka = ifelse(ka == 0, 0, ka)) %>%
+  filter(!(ka == 0 | ks == 0)) %>%
   filter(ka != 0 & ks != 0) %>%
   mutate(kaks = ka / ks)
 
@@ -50,16 +51,35 @@ clique_counts <- dnds_filt %>%
   summarise(n_cliques = n_distinct(clique_name)) %>%
   ungroup()
 
-merged_df <- dnds_filt %>%
-  group_by(clique_name, is_jump) %>%
-  summarise(min_kaks = min(kaks),
-            min_dist = min(patristic_dist)) %>%
+# Get min. kaks
+iter_df <- dnds_filt %>%
+  distinct(clique_name, is_jump)
+
+min_df <- foreach(i = seq(nrow(iter_df)), .combine = "bind_rows") %do% {
+  row <- iter_df[i, ]
+  dnds_filt %>%
+    filter(clique_name == row$clique_name,
+           is_jump == row$is_jump) %>%
+    arrange(kaks) %>%
+    head(1)
+}
+
+# Merge data
+merged_df <- min_df %>%
+  select(clique_name, is_jump, patristic_dist, min_kaks = kaks) %>%
+  # group_by(clique_name, is_jump) %>%
+  # summarise(min_kaks = min(kaks),
+            # min_dist = min(patristic_dist)) %>%
   separate(clique_name, c("family"), "_", remove = F) %>%
   left_join(genome_type) %>%
   left_join(host_counts) %>%
   left_join(genome_counts) %>%
   left_join(clique_counts)
 
+# Jump/non-jump counts
+merged_df %>%
+  group_by(is_jump) %>%
+  summarise(n = n())
 # Visualise overall dnds
 wilcox <- wilcox.test(log10(merged_df$min_kaks) ~ merged_df$is_jump,
                       alternative = "less")
@@ -112,8 +132,15 @@ nonjump_mod <- glm(as.formula(formula_string),
                    data = merged_df %>% filter(!is_jump),
                    family = poisson())
 
+nrow(merged_df %>% filter(is_jump)) - nrow(coef(summary(nonjump_mod)))
+nrow(merged_df %>% filter(!is_jump)) - nrow(coef(summary(nonjump_mod)))
+
+summary(jump_mod)
+summary(nonjump_mod)
+
 obs_slope_diff <- coef(jump_mod)[["log(min_kaks)"]] - coef(nonjump_mod)[["log(min_kaks)"]]
 obs_slope_diff
+
 # Permutation test for difference in slopes
 set.seed(66)
 

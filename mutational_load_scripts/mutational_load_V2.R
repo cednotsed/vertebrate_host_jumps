@@ -15,6 +15,12 @@ meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.c
 
 jump_df <- fread("results/mutational_load_out/host_jump_lists/diff_hosts.genus_counts.all_jumps.V2.csv")
 
+# Counts
+jump_df %>%
+  filter(!is_jump) %>%
+  distinct(clique_name) %>%
+  nrow()
+
 # Get host counts
 host_counts <- meta %>%
   dplyr::rename(clique_name = cluster) %>% 

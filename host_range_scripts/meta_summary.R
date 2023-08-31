@@ -6,11 +6,50 @@ require(ggrepel)
 require(Hmisc)
 require(maps)
 
-meta <- fread("data/metadata/all_viruses.taxid10239.excl_provirus_env_lab_vax.gt1000nt.220723.csv") %>%
+meta <- fread("data/metadata/all_viruses.taxid10239.excl_provirus_env_lab_vax.220723.V2.csv") %>%
   rename_all(~tolower(gsub(" ", "_", .x))) %>%
   left_join(fread("data/metadata/parsed_host_metadata.csv"))
 
 genome_meta <- fread("data/metadata/all_viruses.220723.filt.QCed.csv")
+ictv_meta <- fread("data/metadata/ICTV_Master_Species_List_2022_MSL38.v2.060823.csv") %>%
+  rename_all(~tolower(gsub(" ", "_", .x)))
+
+# Proportion of viruses by type
+
+type_counts <- meta %>%
+  filter(family != "Pleolipoviridae") %>% 
+  mutate(molecule_type = ifelse(molecule_type %in% c("DNA", "RNA", "", 
+                                                     "unknown"),
+                                "unknown",
+                                molecule_type)) %>%
+  # filter(!grepl("Severe acute respiratory syndrome coronavirus 2|SARS-CoV-2",
+  #               genbank_title,
+  #               ignore.case = T)) %>%
+  # filter(molecule_type != "dsDNA; ssDNA") %>%
+  mutate(molecule_type = case_when(grepl("dsDNA", molecule_type) ~ "dsDNA",
+                                   grepl("ssDNA", molecule_type) ~ "ssDNA",
+                                   grepl("dsRNA", molecule_type) ~ "dsRNA",
+                                   grepl("ssRNA", molecule_type) ~ "ssRNA",
+                                   molecule_type == "unknown" ~ "unknown")) %>%
+  group_by(molecule_type) %>%
+  summarise(n = n()) %>%
+  mutate(prop = n / sum(n, na.rm = T) * 100)
+
+type_counts %>%
+  arrange(desc(prop))
+
+# ictv_meta %>%
+#   dplyr::rename(molecule_type = genome_composition) %>%
+#   filter(molecule_type != "dsDNA; ssDNA") %>%
+#   mutate(molecule_type = case_when(grepl("dsDNA", molecule_type) ~ "dsDNA",
+#                                    grepl("ssDNA", molecule_type) ~ "ssDNA",
+#                                    grepl("dsRNA", molecule_type) ~ "dsRNA",
+#                                    grepl("ssRNA", molecule_type) ~ "ssRNA")) %>%
+#   group_by(molecule_type) %>%
+#   summarise(n_species = n_distinct(species)) %>%
+#   left_join(type_counts) %>%
+#   mutate(ratio = n / n_species) %>%
+#   arrange(desc(ratio))
 
 to_keep <- c("Poxviridae", "Herpesviridae", "Picornaviridae",
              "Peribunyaviridae", "Birnaviridae", "Circoviridae",
@@ -69,7 +108,18 @@ meta_filt <- meta %>%
                                  family %in% dsDNA_RT ~ "dsDNA (RT)"))
 
 
+# Proportion of SARS-CoV-2
+meta %>%
+  summarise(prop = sum(grepl("Severe acute respiratory syndrome coronavirus 2|SARS-CoV-2",
+                       genbank_title,
+                       ignore.case = T) / n()))
 
+meta %>%
+  summarise(prop = sum(grepl("Severe acute respiratory syndrome coronavirus 2|SARS-CoV-2",
+                             genbank_title,
+                             ignore.case = T) / n()))
+meta %>%
+  nrow()
 # Proportion of human sequences
 meta %>%
   filter(!is.na(taxid)) %>%
@@ -246,17 +296,13 @@ count_df %>%
 meta %>%
   filter(host_genus != "Homo" & host != "Homo sapiens") %>%
   summarise(missing = sum(collection_date == "") / n())
+
 plot_df2 <- meta %>%
   mutate(host_genus = ifelse(is.na(host_genus) | host_genus == "",
                              "Missing", host_genus)) %>%
-  # filter(!is.na(host_genus)) %>%
-  # filter(host_genus != "") %>%
   mutate(host_genus = ifelse(host_genus %in% count_filt$host_genus, 
                              host_genus, 
                              "Others"))
-  # group_by(host_genus) %>%
-  # summarise(n = n()) %>%
-  # arrange(desc(n))
 
 plot_df2 %>%
   ggplot(aes(x = 1, fill = host_genus)) +

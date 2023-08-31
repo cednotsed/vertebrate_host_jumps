@@ -63,10 +63,10 @@ res %>%
        y = "No. of viral cliques") +
   theme_bw()
 
-ggsave("results/source_sink_analysis/prop_alignment_unmasked.png", dpi = 300, width = 5, height = 5)
+ggsave("results/source_sink_analysis/prop_alignment_unmasked.pdf", dpi = 300, width = 5, height = 5)
 
 res %>%
-  filter(prop_length_retained < 0.8)
+  filter(prop_length_retained <= 0.8)
 # Save
 res %>%
   dplyr::rename(clique_name = viral_clique) %>%

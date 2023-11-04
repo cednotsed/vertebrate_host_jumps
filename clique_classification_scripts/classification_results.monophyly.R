@@ -31,13 +31,13 @@ bind_rows(morsels) %>%
              lty = "dashed",
              color = "red")
 
-ggsave("results/clique_classification_out/monophyly_results.pdf", width = 5, height = 5)
+ggsave("results/clique_classification_out/monophyly_results.pdf", width = 5, height = 3)
 
 
 bind_rows(morsels) %>%
   filter(t == 0.15) %>%
-  arrange(prop_mono)
-  group_by(family, t) %>%
+  arrange(prop_mono) %>%
+  group_by(t) %>%
   summarise(median_monophyly = median(prop_mono, na.rm = T)) %>%
   ggplot(aes(x = t, y = median_monophyly, color = family)) +
   geom_point() +

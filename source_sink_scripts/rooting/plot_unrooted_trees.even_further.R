@@ -1,5 +1,5 @@
 rm(list = ls())
-setwd("C:/git_repos/viral_sharing/")
+setwd("C:/git_repos/vertebrate_host_jumps/")
 require(tidyverse)
 require(data.table)
 require(ape)
@@ -13,70 +13,33 @@ require(ggnewscale)
 require(ggutils)
 require(randomcoloR)
 
-meta <- fread(str_glue("results/species_classification_out/final_cluster_metadata.2.140423.csv")) %>%
-  separate(collection_date, c("Y"), "-") %>%
-  mutate(host_genus = case_when(host_genus == "Hesperosciurus" ~ "Sciurus",
-                                host_genus == "Neosciurus" ~ "Sciurus",
-                                host_genus == "Pholidota" ~ "Manis",
-                                TRUE ~ host_genus))
-
-tree_dir <- "data/trees/source_sink_mini_trees/with_outgroup_buffer.all_jumps/"
-tree_paths <- list.files(tree_dir, ".treefile")
+meta <- fread(str_glue("results/clique_classification_out/final_cluster_metadata.220723.csv"))
+mash_dir <- "results/mash_out/source_sink_mini_trees/with_buffer_outgroup.even_further"
+mash_paths <- list.files(mash_dir, ".tsv")
 # tree_paths <- tree_paths[grepl("Hepeviridae_17",
 #                                tree_paths)]
-tree_paths
+mash_path <- mash_paths[1]
 
-tree_path <- tree_paths[1]
-tree_path
-
-# Get external outgrps
-root_df <- fread("results/source_sink_analysis/source_sink_results.all_jumps.curated.csv") %>%
-  filter(root_resolved == "T")
-
-root_morsels <- foreach(tree_path = tree_paths) %do% {
-  tree <- read.tree(str_glue("{tree_dir}{tree_path}"))
-  clique_name <- str_split(tree_path, "\\.")[[1]][1]
+morsels <- foreach(mash_path = mash_paths) %do% {
+  print(mash_path)
+  clique_name <- str_split(mash_path, "\\.")[[1]][1]
   
-  # Parse tips
-  # tree <- tree %>%
-  #     as_tibble() %>% 
-  #     mutate(label = gsub("_R_", "", label)) %>%
-  #     as.treedata()
+  # Get NJ tree
+  cm <- read.csv(str_glue("{mash_dir}/{mash_path}"), 
+                 sep = "\t", 
+                 header = T,
+                 row.names = 1,
+                 stringsAsFactors = F)
   
-  tree$tip.label <- gsub("_R_", "", tree$tip.label)
+  cm <- data.matrix(cm)
+  tree <- bionj(cm) 
   
-  # Root and drop external cliques
-  if (clique_name %in% root_df$cluster) {
-    root_names <- deframe(root_df %>%
-      filter(cluster == clique_name) %>%
-        select(root_cliques))
-
-    root_names <- str_split(root_names, ";", simplify = T)[1, ]
-
-    root_acc_filt <- deframe(meta %>%
-                              filter(cluster %in% root_names) %>%
-                              filter(accession %in% as.phylo(tree)$tip.label) %>%
-                              select(accession))
-    to_remove <- deframe(meta %>%
-                           filter(accession %in% as.phylo(tree)$tip.label) %>%
-                           filter(cluster != clique_name) %>%
-                           select(accession))
-
-    if(clique_name == "Rhabdoviridae_12") {
-      exceptions <- c("JQ685907.1", "JQ685941.1")
-      tree <- drop.tip(tree, exceptions)
-    }
-
-    tree <- root(tree, root_acc_filt)
-    tree <- drop.tip(tree, to_remove)
-    
-    write.tree(as.phylo(tree),
-               str_glue("data/trees/source_sink_mini_trees/with_outgroup_buffer.all_jumps/rooted/{clique_name}.rooted.treefile"))
-  }
-    
+  write.tree(tree, 
+             str_glue("data/trees/source_sink_mini_trees/with_buffer_outgroup.even_further/unrooted/{clique_name}.n{Ntip(tree)}.unrooted.nwk"))
+  
   # Match metadata to tips
-  tips <- as.phylo(tree)$tip.label
-
+  tips <- tree$tip.label
+  
   meta.match <- meta[match(tips, meta$accession), ]
   
   all(tips == meta.match$accession)
@@ -92,7 +55,6 @@ root_morsels <- foreach(tree_path = tree_paths) %do% {
   dd <- data.frame(Accession = tips,
                    host = meta.match$host_genus,
                    country = meta.match$country,
-                   collection_date = meta.match$Y,
                    viral_clique = meta.match$cluster) %>%
     mutate(country = ifelse(country == "", NA, country)) %>%
     mutate(of_interest = ifelse(viral_clique == clique_name, T, NA)) %>%
@@ -142,8 +104,8 @@ root_morsels <- foreach(tree_path = tree_paths) %do% {
     p_linear <- p_linear + geom_nodelab()
   }
   
-  save_prefix <- gsub(".treefile", ".pdf", tree_path)
-  ggsave(str_glue("results/source_sink_analysis/clique_trees/with_outgroup_buffer.all_jumps/{save_prefix}"),
+  save_prefix <- gsub(".tsv", ".pdf", mash_path)
+  ggsave(str_glue("results/source_sink_analysis/clique_trees/with_buffer_outgroup.even_further/{save_prefix}"),
          plot = p_linear,
          dpi = 100,
          width = 15,

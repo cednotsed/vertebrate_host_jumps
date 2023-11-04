@@ -30,7 +30,8 @@ to_keep <- c("Poxviridae", "Herpesviridae", "Picornaviridae",
              "Matonaviridae", "Pseudoviridae")
 
 segmented_families <- c("Arenaviridae", "Birnaviridae", "Peribunyaviridae", 
-                        "Orthomyxoviridae", "Picobirnaviridae", "Reoviridae")
+                        "Orthomyxoviridae", "Picobirnaviridae", "Sedoreoviridae",
+                        "Spinareoviridae")
 
 family_filt <- dat %>%
   filter(family %in% to_keep) %>%
@@ -85,6 +86,26 @@ non_segmented <- no_sars2 %>%
                 ignore.case = T))
 
 # Filter segmented
+reo <- segmented %>%
+  filter(family == "Sedoreoviridae") %>% 
+  filter(grepl("VP1|segment 1|polymerase|rdrp", 
+               genbank_title,
+               ignore.case = T) &
+           grepl("complete", 
+                 genbank_title, 
+                 ignore.case = T)) %>%
+  filter(length > 2000)
+
+spina <- segmented %>%
+  filter(family == "Spinareoviridae") %>% 
+  filter(grepl("segment l1|rdrp|lambda 3|polymerase", 
+               genbank_title,
+               ignore.case = T) &
+           grepl("complete", 
+                 genbank_title, 
+                 ignore.case = T)) %>%
+  filter(length > 2000)
+
 pico <- segmented %>%
   filter(family == "Picobirnaviridae") %>% 
   filter(grepl("RdRP|polymerase|segment 2", 
@@ -158,8 +179,8 @@ ortho_animal <- ortho %>%
 ortho_filt <- ortho %>%
   filter(species != "Betainfluenzavirus influenzae") %>%
   bind_rows(ortho_human, ortho_animal)
-  
-segmented_filt <- bind_rows(pico, birna, peri, ortho_filt, arena)
+
+segmented_filt <- bind_rows(reo, spina, pico, birna, peri, ortho_filt, arena)
 
 # Filter other viruses non-segmented (no sars2)
 ns_human_viruses <- non_segmented %>%
@@ -186,13 +207,11 @@ print(str_glue("Final filtered viruses: {nrow(final_merged)}"))
 all(final_merged$accession == unique(final_merged$accession))
 
 # Annotate circular genomes
-segmented_family <- c("Arenaviridae", "Birnaviridae", "Peribunyaviridae",
-                        "Orthomyxoviridae", "Picobirnaviridae", "Reoviridae")
-circular_family <- c("Anelloviridae", "Circoviridae", "Genomoviridae",
+circular_families <- c("Anelloviridae", "Circoviridae", "Genomoviridae",
                      "Hepadnaviridae", "Smacoviridae")
 final_merged %>%
-  mutate(is_segmented = ifelse(family %in% segmented_family, T, F),
-         is_circular = ifelse(family %in% circular_family, T, F)) %>%
+  mutate(is_segmented = ifelse(family %in% segmented_families, T, F),
+         is_circular = ifelse(family %in% circular_families, T, F)) %>%
   fwrite("data/metadata/all_viruses.220723.filt.csv")
 
 final_merged %>%

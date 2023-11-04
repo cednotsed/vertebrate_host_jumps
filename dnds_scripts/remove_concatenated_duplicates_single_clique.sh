@@ -3,6 +3,7 @@ in_dir=../results/dnds_out/agat_fix
 out_basedir=../results/dnds_out/agat_filt
 
 clique=$1
+#clique=Genomoviridae_107
 clique_path=$kill_dir/$clique
 
 clique=$(echo $clique_path|sed "s|$kill_dir/||g")

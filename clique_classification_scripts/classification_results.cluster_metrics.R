@@ -10,6 +10,7 @@ meta <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%
 
 file_dir <- "results/clique_classification_out/clustering_metrics/"
 file_list <- list.files(file_dir, full.names = T)
+file_list <- file_list[grepl("ICTV", file_list)]
 
 morsels <- foreach(file_name = file_list) %do% {
   fread(file_name)
@@ -34,5 +35,5 @@ bind_rows(morsels) %>%
        shape = "Metric",
        color = "Taxon level")
 
-ggsave("results/clique_classification_out/clustering_metrics.pdf", width = 8, height = 5)
+ggsave("results/clique_classification_out/clustering_metrics.ICTV.pdf", width = 5, height = 3)
 

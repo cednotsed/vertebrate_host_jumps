@@ -1,8 +1,9 @@
 genome_dir=../data/genomes/dnds_analysis
 out_basedir=../results/dnds_out/prokka_out
-
+out_basedir=./
 # Iterate through each clique of interest
 clique=$1
+clique=Flaviviridae_3
 echo $clique
 #mkdir $out_basedir/$clique
 
@@ -18,7 +19,7 @@ do
 	prokka \
                	--prefix $prefix \
        	        --kingdom Viruses \
-  	        --evalue 1e-09 \
+  	        --evalue 1e-03 \
                	--coverage 80 \
 		--cpus 1 \
 		--outdir $out_basedir/$clique \

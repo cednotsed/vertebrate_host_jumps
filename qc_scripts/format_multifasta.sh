@@ -1,11 +1,11 @@
 #in_fna=./test.fna
 #out_fna=./test.formatted.fna
 
-#in_fna=../data/genomes/all_viruses.220723.filt.fna
-#out_fna=../data/genomes/all_viruses.220723.filt.formatted.fna
+in_fna=../data/genomes/all_viruses.220723.filt.fna
+out_fna=../data/genomes/all_viruses.220723.filt.formatted.fna
 
-in_fna=../data/genomes/all_viruses.220723.filt.missing.fna
-out_fna=../data/genomes/all_viruses.220723.filt.missing.formatted.fna
+#in_fna=../data/genomes/all_viruses.220723.filt.missing.fna
+#out_fna=../data/genomes/all_viruses.220723.filt.missing.formatted.fna
 
 dos2unix $in_fna
 

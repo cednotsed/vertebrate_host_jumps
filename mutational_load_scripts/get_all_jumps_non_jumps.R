@@ -14,6 +14,11 @@ jump_df <- fread("results/mutational_load_out/putative_host_jumps.csv") %>%
   filter(clique_name %in% good_alns$clique_name) %>%
   mutate(is_jump = T)
 
+# Write distinct host jumps
+jump_df %>%
+  distinct(anc_state, tip_state, anc_name, clique_name) %>%
+  fwrite("results/source_sink_analysis/all_distinct_host_jumps.csv")
+
 meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
   left_join(fread("data/metadata/parsed_host_metadata.csv")) %>%
   left_join(genome_type)

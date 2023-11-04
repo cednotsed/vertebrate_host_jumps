@@ -6,7 +6,8 @@ require(foreach)
 require(Biostrings)
 require(Hmisc)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
+  left_join(fread("data/metadata/parsed_host_metadata.csv"))
 
 parsed <- meta %>%
   filter(host_genus != "")
@@ -14,13 +15,18 @@ parsed <- meta %>%
 count_df <- parsed %>%
   group_by(cluster) %>%
   summarise(n_genomes = n(),
-            genus_range = n_distinct(host_genus),
+            genus_range = n_distinct(host_genus, na.rm = T),
             is_human = sum(host_genus == "Homo") > 0)
 
 parsed_filt <- parsed %>% 
   left_join(count_df) %>%
   filter(genus_range > 1) %>%
   filter(n_genomes >= 10)
+
+length(unique(parsed_filt$cluster))
+
+# test <- fread("results/source_sink_analysis/final_source_sink_roots.csv")$cluster
+# sum(test %in% unique(parsed_filt$cluster))
 
 # Get host list column
 host_morsels <- foreach(clique_name = unique(parsed_filt$cluster)) %do% {

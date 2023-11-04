@@ -48,6 +48,8 @@ merged_df <- jump_df %>%
   left_join(genome_counts) %>%
   left_join(clique_counts)
 
+# merged_df %>%
+#   fwrite("results/mutational_load_out/host_jump_lists/parsed_min_mutational_loads.csv")
 # Visualise host counts
 # host_counts %>%
 #   filter(clique_name %in% merged_df$clique_name) %>%

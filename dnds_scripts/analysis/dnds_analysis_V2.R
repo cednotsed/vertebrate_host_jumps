@@ -36,6 +36,9 @@ dnds_df <- foreach(file_name = dnds_list, .combine = c("bind_rows")) %do% {
   fread(file_name)
 }
 
+# dnds_df <- dnds_df %>% mutate(kaks = ka / ks)
+# fwrite(dnds_df, "results/dnds_out/all_jumps.dnds.diff_hosts.genus_counts.csv")
+
 # Remove zeroes
 dnds_filt <-  dnds_df %>%
   mutate(ks = ifelse(ks == 0 | ks < 0, 0, ks),
@@ -75,6 +78,9 @@ merged_df <- min_df %>%
   left_join(host_counts) %>%
   left_join(genome_counts) %>%
   left_join(clique_counts)
+
+merged_df %>%
+  fwrite("results/dnds_out/parsed_min_dnds.csv")
 
 # Jump/non-jump counts
 merged_df %>%

@@ -20,7 +20,7 @@ host_meta <- fread("data/metadata/parsed_host_metadata.csv")
 meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
   left_join(host_meta)
 
-res_dir <- "results/source_sink_analysis/permutation_ancestral_reconstructions.same_host"
+res_dir <- "results/source_sink_analysis/structured_permutation_ancestral_reconstructions.same_host"
 tree_dir <- "data/trees/source_sink_mini_trees/without_outgroup.masked"
 aln_list <- list.files("data/alignments/source_sink_mini_trees/without_outgroup.masked",
                        "\\.aln",
@@ -195,10 +195,16 @@ for(tree_path in tree_paths) {
       mutate(host = ifelse(host == ""|is.na(host), "Unknown", host)) %>% 
       mutate(host = gsub(" sp\\.", "", host))
     
-    tip_states <- sample(meta.match$host, replace = F)
+    # Recode host states
+    tip_states <- meta.match$host
+    state_number <- as.numeric(as.factor(tip_states))
+    replace_list <- setNames(unique(tip_states), sample(unique(state_number), replace = F))
+    recoded <- recode(state_number, !!!replace_list)
     
+    # tibble(old = tip_states, number = state_number, new = recoded) %>% View()
     all(tips == meta.match$accession) # Test
-    x <- setNames(tip_states, tips)
+    
+    x <- setNames(recoded, tips)
     
     # Ancestral reconstruction
     fitER <- ape::ace(x, rooted,

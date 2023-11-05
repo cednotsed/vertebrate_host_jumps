@@ -20,7 +20,7 @@ host_meta <- fread("data/metadata/parsed_host_metadata.csv")
 meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
   left_join(host_meta)
 
-res_dir <- "results/source_sink_analysis/permutation_ancestral_reconstructions.same_host"
+res_dir <- "results/source_sink_analysis/permutation_ancestral_reconstructions"
 tree_dir <- "data/trees/source_sink_mini_trees/without_outgroup.masked"
 aln_list <- list.files("data/alignments/source_sink_mini_trees/without_outgroup.masked",
                        "\\.aln",
@@ -29,16 +29,38 @@ aln_list <- aln_list[grepl("masked_to", aln_list)]
 
 tree_paths <- list.files(tree_dir, ".treefile")
 
-# # For running only unfinished runs
-# done <- gsub(".csv", "", list.files(str_glue("{res_dir}/temp_results")))
-# 
-# tree_paths <- deframe(tibble(tree_paths = tree_paths) %>%
-#                         separate(tree_paths, c("clique_name"), "\\.", remove = F) %>%
-#                         filter(!(clique_name %in% done)) %>%
-#                         select(tree_paths))
-tree_paths <- tree_paths[!grepl("Circoviridae_2\\.", tree_paths)]
+# For running only unfinished runs
+done <- gsub(".csv", "", list.files(str_glue("{res_dir}/temp_results")))
+
+tree_paths <- deframe(tibble(tree_paths = tree_paths) %>%
+    separate(tree_paths, c("clique_name"), "\\.", remove = F) %>%
+    filter(!(clique_name %in% done)) %>%
+    select(tree_paths))
+tree_paths <- tree_paths[!grepl("Circoviridae_2", tree_paths)]
 
 length(tree_paths)
+
+  # Host checker function
+is_diff_host <- function(host1, host2) {
+  # host1 <- "Homo sapiens"
+  # host2 <- "Alouatta sp."
+  
+  taxa <- bind_rows(host_meta[host_meta$host == host1, ],
+                    host_meta[host_meta$host == host2, ]) %>%
+    as_tibble()
+  
+  if(nrow(taxa) == 2) {
+    ranks <- c("host_species", "host_genus", "host_family", "host_order", "host_class")
+    to_ignore <- apply(taxa[, ranks], 2, function(x) {any(x == "")})
+    rank_filt <- ranks[!to_ignore]
+    proceed <- any(taxa[1, rank_filt] != taxa[2, rank_filt])
+  } else {
+    proceed <- F
+    print(str_glue("Error: {host1}|{host2}"))
+  }
+  
+  return(proceed)
+}
 
 # Analysis function
 count_transitions <- function(aln_len, tr, tip_name, ancstats, x) {
@@ -64,11 +86,7 @@ count_transitions <- function(aln_len, tr, tip_name, ancstats, x) {
     
     traverse_counter <- 1
     
-    continue <- T
-    
-    count_temp <- tibble()
-    
-    while (traverse_counter <= traverse_limit & continue) {
+    while (traverse_counter <= traverse_limit) {
       # Get parent and corresponding stats
       parent_name <- parent(tr, node_name)$node
       node_stats <- ancstats %>%
@@ -90,7 +108,8 @@ count_transitions <- function(aln_len, tr, tip_name, ancstats, x) {
             
             # Skip if ancestral state is Unknown
             if (anc_state != "Unknown") {
-              if (anc_state == tip_state) {
+              if (anc_state != tip_state & 
+                  is_diff_host(anc_state, tip_state)) {
                 patristic_dist <- get_pairwise_distances(scaled_tr, 
                                                          parent_name, 
                                                          tip_name, 
@@ -98,49 +117,22 @@ count_transitions <- function(aln_len, tr, tip_name, ancstats, x) {
                 
                 node_name <- scaled_tr$node.label[parent_name - Ntip(tree)]
                 
-                count_temp <- bind_rows(count_temp, 
-                                        tibble(anc_name = node_name,
-                                               tip_name = tip_name, 
-                                               anc_state = anc_state,
-                                               tip_state = tip_state,
-                                               n_traverses = traverse_counter,
-                                               total_depth = anc_depth,
-                                               patristic_dist = patristic_dist))
-              } else {
-                # Stop when host state changes
-                continue <- F
+                return(tibble(anc_name = node_name,
+                              tip_name = tip_name, 
+                              anc_state = anc_state,
+                              tip_state = tip_state,
+                              n_traverses = traverse_counter,
+                              total_depth = anc_depth,
+                              patristic_dist = patristic_dist))
               }
-            } else {
-              # Stop if ancestral state is unknown
-              continue <- F
             }
-          } else { 
-            # Stop when ancestral state is ambiguous
-            continue <- F
           }
-        } else {
-          # Stop if ancestral state has more than one max. likelihood
-          continue <- F
         }
-      } else {
-        # Stop if no. ancestral states too low
-        continue <- F
       }
-      
       # Get next node
       node_name <- parent_name
       traverse_counter <- traverse_counter + 1
     }
-  } else {
-    # Return null if tip is too shallow
-    return(NULL)
-  }
-  
-  # Return if dataframe is not empty
-  if (nrow(count_temp) > 0) {
-    return(count_temp)
-  } else {
-    return(NULL)
   }
 }
 
@@ -152,7 +144,7 @@ count_transitions <- function(aln_len, tr, tip_name, ancstats, x) {
 root_df <- fread("results/source_sink_analysis/final_source_sink_roots.csv")
 
 for(tree_path in tree_paths) {
-  # tree_path = tree_paths[20]
+  # tree_path = tree_paths[2]
   print(tree_path)
   
   # Reset seed for every tree
@@ -161,6 +153,9 @@ for(tree_path in tree_paths) {
   for (i in seq(100)) {
     print(i)
     tree <- ape::read.tree(str_glue("{tree_dir}/{tree_path}"))
+    
+    ## Parse node labels
+    # tree$node.label <- str_split(tree$node.label, "/", simplify = T)[, 2]
     
     # Parse tip names
     tip_labels <- gsub("_R_", "", tree$tip.label)
@@ -173,8 +168,8 @@ for(tree_path in tree_paths) {
     
     # Root tree
     root_acc <- deframe(root_df %>%
-                          filter(cluster == clique_name) %>%
-                          select(root_tip))
+                         filter(cluster == clique_name) %>%
+                         select(root_tip))
     
     rooted <- root(tree, root_acc, resolve.root = T)
     
@@ -196,7 +191,7 @@ for(tree_path in tree_paths) {
       mutate(host = gsub(" sp\\.", "", host))
     
     tip_states <- sample(meta.match$host, replace = F)
-    
+  
     all(tips == meta.match$accession) # Test
     x <- setNames(tip_states, tips)
     
@@ -214,14 +209,12 @@ for(tree_path in tree_paths) {
     tip_filt <- names(x[x != "Unknown"])
     
     crumbs <- foreach(tip_name = tip_filt) %do% {
-      # tip_name = tip_filt[27]
       count_transitions(aln_len, rooted, tip_name, ancstats, x)
     }
     
     count_df <- bind_rows(crumbs) %>%
-      mutate(clique_name = clique_name) %>%
-      mutate(iter = i)
-    
+      mutate(clique_name = clique_name)
+  
     # Write temp results
     fwrite(count_df,
            str_glue("{res_dir}/temp_results/{clique_name}.{i}.csv"))

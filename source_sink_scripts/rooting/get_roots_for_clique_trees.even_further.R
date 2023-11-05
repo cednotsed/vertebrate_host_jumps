@@ -13,11 +13,12 @@ require(ggnewscale)
 require(ggutils)
 require(randomcoloR)
 
-meta <- fread(str_glue("results/clique_classification_out/final_cluster_metadata.220723.csv"))
+meta <- fread(str_glue("results/clique_classification_out/final_cluster_metadata.220723.new.csv"))
 tree_dir <- "data/trees/source_sink_mini_trees/with_buffer_outgroup.even_further/unrooted/"
 tree_paths <- list.files(tree_dir, ".nwk")
+# tree_paths <- tree_paths[grepl("reoviridae", tree_paths)]
 # tree_path <- tree_paths[1]
-tree_path
+# tree_path
 
 root_df <- fread("results/source_sink_analysis/source_sink_results.even_further.roots.curated.csv")
 
@@ -25,6 +26,7 @@ root_filt <- root_df %>%
   filter(root_resolved)
 
 morsels <- foreach(clique_name = unique(root_filt$cluster)) %do% {
+  # clique_name = unique(root_filt$cluster)[247]
   tree_path <- tree_paths[grepl(str_glue("{clique_name}\\."), tree_paths)]
   
   # Get NJ tree
@@ -75,4 +77,5 @@ root_df %>%
   select(cluster, hosts, n_genomes, root_resolved, outgroups) %>%
   left_join(bind_rows(morsels)) %>%
   fwrite("results/source_sink_analysis/final_source_sink_roots.csv")
+
 

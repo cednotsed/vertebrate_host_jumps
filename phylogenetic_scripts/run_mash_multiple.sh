@@ -8,7 +8,7 @@ mkdir $out_dir
 
 n_threads=12
 
-for in_fna in $genome_dir/*.fna
+for in_fna in $genome_dir/*reoviridae*.fna
 do
 	echo $in_fna
 

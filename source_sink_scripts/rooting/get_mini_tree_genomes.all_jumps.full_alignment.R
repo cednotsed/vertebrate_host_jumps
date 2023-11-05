@@ -6,7 +6,7 @@ require(foreach)
 require(Biostrings)
 require(Hmisc)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.new.csv")
 
 parsed <- meta %>%
   filter(host_genus != "")
@@ -25,7 +25,12 @@ parsed_filt <- parsed %>%
 # Write clique genomes
 fna <- readDNAStringSet("data/genomes/all_viruses.220723.filt.formatted.QCed.fna")
 
-for(cluster_name in unique(parsed_filt$cluster)) {
+# to_do <- unique(parsed_filt$cluster)
+to_do <- deframe(parsed_filt %>%
+                   filter(family %in% c("Spinareoviridae", "Sedoreoviridae")) %>%
+                   distinct(cluster))
+
+for(cluster_name in to_do) {
   print(cluster_name)
   family_name <- str_split(cluster_name, "_")[[1]][1]
   
@@ -36,7 +41,7 @@ for(cluster_name in unique(parsed_filt$cluster)) {
   fna_filt <- fna[names(fna) %in% cluster_accs]
   
   if (length(fna_filt) == length(cluster_accs)) {
-    writeXStringSet(fna_filt, str_glue("data/genomes/source_sink_mini_trees/full_alignments/{cluster_name}.n{length(fna_filt)}.fna"))
+    writeXStringSet(fna_filt, str_glue("data/genomes/source_sink_mini_trees/without_outgroup/{cluster_name}.n{length(fna_filt)}.fna"))
   } else {
     print(str_glue("Eff!problem with {cluster_name} mini-tree"))
   }

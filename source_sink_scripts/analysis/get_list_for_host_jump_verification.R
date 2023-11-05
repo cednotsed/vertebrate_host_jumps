@@ -3,6 +3,7 @@ setwd("C:/git_repos/vertebrate_host_jumps/")
 require(tidyverse)
 require(data.table)
 require(foreach)
+
 genome_type <- fread("data/metadata/genome_type_metadata.csv")
 
 meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%

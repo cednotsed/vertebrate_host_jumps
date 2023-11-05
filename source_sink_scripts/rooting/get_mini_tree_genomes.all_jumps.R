@@ -6,7 +6,7 @@ require(foreach)
 require(Biostrings)
 require(Hmisc)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.new.csv") %>%
   left_join(fread("data/metadata/parsed_host_metadata.csv"))
 
 parsed <- meta %>%
@@ -28,8 +28,13 @@ length(unique(parsed_filt$cluster))
 # test <- fread("results/source_sink_analysis/final_source_sink_roots.csv")$cluster
 # sum(test %in% unique(parsed_filt$cluster))
 
+# to_do <- unique(parsed_filt$cluster)
+to_do <- deframe(parsed_filt %>%
+  filter(family %in% c("Spinareoviridae", "Sedoreoviridae")) %>%
+  distinct(cluster))
+
 # Get host list column
-host_morsels <- foreach(clique_name = unique(parsed_filt$cluster)) %do% {
+host_morsels <- foreach(clique_name = to_do) %do% {
   print(clique_name)
   
   host_list <- deframe(parsed_filt %>%
@@ -48,7 +53,7 @@ host_morsels <- foreach(clique_name = unique(parsed_filt$cluster)) %do% {
 to_write <- bind_rows(host_morsels) %>%
   left_join(parsed_filt %>% distinct(cluster, n_genomes))
 
-fwrite(to_write, "results/source_sink_analysis/source_sink_results.csv")
+fwrite(to_write, "results/source_sink_analysis/to_add.source_sink_results.csv")
 
 # Write clique genomes
 fna <- readDNAStringSet("data/genomes/all_viruses.220723.filt.formatted.QCed.fna")
@@ -57,7 +62,7 @@ mash_list <- list.files("results/mash_out/viral_family_subsets/",
                         "\\.tsv",
                         full.names = T)
 
-for(cluster_name in unique(parsed_filt$cluster)) {
+for(cluster_name in to_do) {
   print(cluster_name)
   family_name <- str_split(cluster_name, "_")[[1]][1]
   
@@ -70,7 +75,7 @@ for(cluster_name in unique(parsed_filt$cluster)) {
   mash_path <- mash_list[grepl(family_name, mash_list)]
   
   family_dist <- fread(mash_path) %>%
-    rename(`#query` = "query")
+    dplyr::rename(query = `#query`)
   
   to_compute <- family_dist$query[!(family_dist$query %in% cluster_accs)]
   
@@ -96,4 +101,4 @@ for(cluster_name in unique(parsed_filt$cluster)) {
   }
 }
 
-print(str_glue("You should have {length(unique(parsed_filt$cluster))} fna files"))
+print(str_glue("You should have {length(to_do)} fna files"))

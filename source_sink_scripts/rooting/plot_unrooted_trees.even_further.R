@@ -13,12 +13,13 @@ require(ggnewscale)
 require(ggutils)
 require(randomcoloR)
 
-meta <- fread(str_glue("results/clique_classification_out/final_cluster_metadata.220723.csv"))
+meta <- fread(str_glue("results/clique_classification_out/final_cluster_metadata.220723.new.csv"))
 mash_dir <- "results/mash_out/source_sink_mini_trees/with_buffer_outgroup.even_further"
 mash_paths <- list.files(mash_dir, ".tsv")
+mash_paths <- mash_paths[grepl("reoviridae", mash_paths)]
 # tree_paths <- tree_paths[grepl("Hepeviridae_17",
 #                                tree_paths)]
-mash_path <- mash_paths[1]
+# mash_path <- mash_paths[1]
 
 morsels <- foreach(mash_path = mash_paths) %do% {
   print(mash_path)

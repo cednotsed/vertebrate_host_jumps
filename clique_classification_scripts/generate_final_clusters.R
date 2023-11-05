@@ -51,9 +51,14 @@ fam_morsels <- foreach(fam = to_do) %do% {
   return(meta.match)
 }
 
+# # Append columns
+to_add <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%
+  select(accession, molecule_type, is_segmented, is_circular, host)
+
 final_meta <- bind_rows(fam_morsels) %>%
   separate(host, c("host_genus", "host_species"), " ") %>%
-  mutate(host_genus = capitalize(host_genus))
+  mutate(host_genus = capitalize(host_genus)) %>%
+  left_join(to_add)
   # filter(!(grepl("dae|nae", host_genus) & !grepl("naeus|naem|naes|naeo", host_genus)))
 
 final_meta %>%
@@ -61,7 +66,19 @@ final_meta %>%
   summarise(n = n_distinct(cluster)) %>%
   arrange(desc(n))
 
-# fwrite(final_meta, "results/clique_classification_out/final_cluster_metadata.220723.new.csv")
+fwrite(final_meta, "results/clique_classification_out/final_cluster_metadata.220723.new.csv")
+
+final_meta %>%
+  distinct(accession) %>%
+  nrow()
+
+final_meta %>%
+  nrow()
+# final_meta
+# old_meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.OLD.csv")
+# test <- old_meta %>% 
+#   select(accession, cluster_old = cluster) %>%
+#   right_join(final_meta) 
 
 # # Append columns
 # to_add <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%

@@ -1,3 +1,4 @@
+rm(list = ls())
 setwd("c:/git_repos/vertebrate_host_jumps/")
 require(data.table)
 require(tidyverse)
@@ -6,7 +7,7 @@ require(Biostrings)
 
 # Merge quality summary
 qual_df <- fread("results/checkv_out/quality_summary.tsv") %>%
-  bind_rows(fread("results/checkv_out/missing/quality_summary.tsv")) %>%
+  # bind_rows(fread("results/checkv_out/missing/quality_summary.tsv")) %>%
   dplyr::rename(accession = contig_id) %>%
   distinct()
 

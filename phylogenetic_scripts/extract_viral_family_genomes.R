@@ -19,3 +19,14 @@ for(fam in unique(meta$family)) {
 }
 
 print("PLEASE RMBR TO DOS2UNIX!!!!!")
+
+# Check difference
+family_fnas <- list.files("data/genomes/viral_family_subsets/", full.names = T)
+for (path in family_fnas) {
+  old_path <- gsub("viral_family_subsets", "viral_family_subsets_OLD", path)
+  new <- readDNAStringSet(path)
+  old <- readDNAStringSet(old_path)
+  is_match <- all(names(new) %in% names(old))
+  is_count <- length(new) == length(old)
+  print(str_glue("{path}: {is_match} {is_count}"))
+}

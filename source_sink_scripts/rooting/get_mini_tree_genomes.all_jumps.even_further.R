@@ -6,7 +6,7 @@ require(foreach)
 require(Biostrings)
 require(Hmisc)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.new.csv")
 
 parsed <- meta %>%
   filter(host_genus != "")
@@ -22,8 +22,13 @@ parsed_filt <- parsed %>%
   filter(genus_range > 1) %>%
   filter(n_genomes >= 10)
 
+# to_do <- unique(parsed_filt$cluster)
+to_do <- deframe(parsed_filt %>%
+                   filter(family %in% c("Spinareoviridae", "Sedoreoviridae")) %>%
+                   distinct(cluster))
+
 # Get host list column
-host_morsels <- foreach(clique_name = unique(parsed_filt$cluster)) %do% {
+host_morsels <- foreach(clique_name = to_do) %do% {
   print(clique_name)
   
   host_list <- deframe(parsed_filt %>%
@@ -51,7 +56,7 @@ mash_list <- list.files("results/mash_out/viral_family_subsets/",
                         "\\.tsv",
                         full.names = T)
 
-for(cluster_name in unique(parsed_filt$cluster)) {
+for(cluster_name in to_do) {
   print(cluster_name)
   family_name <- str_split(cluster_name, "_")[[1]][1]
   
@@ -64,7 +69,7 @@ for(cluster_name in unique(parsed_filt$cluster)) {
   mash_path <- mash_list[grepl(family_name, mash_list)]
   
   family_dist <- fread(mash_path) %>%
-    rename(`#query` = "query")
+    rename(query = `#query`)
   
   to_compute <- family_dist$query[!(family_dist$query %in% cluster_accs)]
   
@@ -105,4 +110,4 @@ for(cluster_name in unique(parsed_filt$cluster)) {
   }
 }
 
-print(str_glue("You should have {length(unique(parsed_filt$cluster))} fna files"))
+print(str_glue("You should have {length(to_do)} fna files"))

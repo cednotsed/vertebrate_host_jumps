@@ -1,5 +1,5 @@
 # Crossing host boundaries: the evolutionary drivers and correlates of viral host jumps
-Authors: Cedric C.S. Tan, Lucy van Dorp, Francois Balloux
+Authors: Cedric C.S. Tan ([email me!](cedriccstan@gmail.com)), Lucy van Dorp, Francois Balloux
 
 DOI: https://doi.org/10.1101/2023.09.01.555953
 
@@ -25,7 +25,17 @@ DOI: https://doi.org/10.1101/2023.09.01.555953
 2. [Mask](phylogenetic_scripts/mask_alignment.R) gappy positions
 3. [Build tree](phylogenetic_scripts/build_trees_with_bootstraps_myriad.sh) with ancestral sequence reconstruction toggled
 
-## Ancestral host reconstruction
+## Ancestral host reconstruction and host jump inference
 1. [Identifying host jumps](ancestral_reconstruction_scripts/varying_thresholds/ancestral_reconstruction.varying_threshold.R)
 2. [Identifying non-host jumps](ancestral_reconstruction_scripts/varying_thresholds/ancestral_reconstruction.varying_threshold.R)
 3. [Parse and filter](ancestral_reconstruction_scripts/varying_thresholds/get_jump_non_jump.V2.R) host jumps and non-host jumps
+
+## Main analyses
+### Metadata summary
+[here](meta_summary_scripts) and [here](host_range_scripts)
+### Anthroponotic frequency
+[here](source_sink_scripts)
+### Mutational distance
+[here](mutational_load_scripts)
+### dN/dS
+[here](dnds_scripts)

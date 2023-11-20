@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=24
+#SBATCH --time=48:00:00
+#SBATCH --mem-per-cpu=5G
+#SBATCH --partition=cpu
+
+source /nemo/lab/matthewsp/home/shared/cedric/utils/miniconda3/etc/profile.d/conda.sh
+conda activate r_env
+
+echo DIFF HOST
+Rscript /nemo/lab/matthewsp/home/shared/cedric/vertebrate_host_jumps/source_sink_scripts/ancestral_reconstruction/permute_ancestral_reconstruction_nemo.R
+
+#echo SAME HOST
+#Rscript /nemo/lab/matthewsp/home/shared/cedric/vertebrate_host_jumps/source_sink_scripts/ancestral_reconstruction/permute_ancestral_reconstruction.same_hosts_nemo.R

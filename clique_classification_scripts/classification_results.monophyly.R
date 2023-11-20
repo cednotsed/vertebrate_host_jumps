@@ -21,12 +21,12 @@ morsels <- foreach(file_name = file_list) %do% {
 
 bind_rows(morsels) %>%
   group_by(t) %>%
-  summarise(median_monophyly = median(prop_mono, na.rm = T)) %>%
-  ggplot(aes(x = t, y = median_monophyly)) +
+  summarise(prop_monophyly = sum(mono) / sum(total)) %>%
+  ggplot(aes(x = t, y = prop_monophyly)) +
   geom_point() +
   geom_line() +
   theme_classic() +
-  labs(x = "Mash distance threshold", y = "Median prop. monophyletic clades") +
+  labs(x = "Mash distance threshold", y = "Prop. monophyletic cliques") +
   geom_vline(xintercept = 0.15,
              lty = "dashed",
              color = "red")
@@ -34,16 +34,23 @@ bind_rows(morsels) %>%
 ggsave("results/clique_classification_out/monophyly_results.pdf", width = 5, height = 3)
 
 
+# bind_rows(morsels) %>%
+#   filter(t == 0.15) %>%
+#   arrange(prop_mono) %>%
+#   group_by(t) %>%
+#   summarise(median_monophyly = median(prop_mono, na.rm = T)) %>%
+#   ggplot(aes(x = t, y = median_monophyly, color = family)) +
+#   geom_point() +
+#   geom_line() +
+#   theme_classic() +
+#   labs(x = "Mash distance threshold", y = "Median prop. monophyletic clades") +
+#   geom_vline(xintercept = 0.15,
+#              lty = "dashed",
+#              color = "red")
+
+morsels <- foreach(file_name = file_list) %do% {
+  fread(file_name)
+}
+
 bind_rows(morsels) %>%
-  filter(t == 0.15) %>%
-  arrange(prop_mono) %>%
-  group_by(t) %>%
-  summarise(median_monophyly = median(prop_mono, na.rm = T)) %>%
-  ggplot(aes(x = t, y = median_monophyly, color = family)) +
-  geom_point() +
-  geom_line() +
-  theme_classic() +
-  labs(x = "Mash distance threshold", y = "Median prop. monophyletic clades") +
-  geom_vline(xintercept = 0.15,
-             lty = "dashed",
-             color = "red")
+  summarise(median_mono = median(prop_mono, na.rm = T))

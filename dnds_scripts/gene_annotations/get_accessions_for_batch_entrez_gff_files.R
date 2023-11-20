@@ -6,30 +6,45 @@ require(foreach)
 require(Hmisc)
 require(Biostrings)
 
-# fna <- readDNAStringSet("data/genomes/all_viruses.220723.filt.formatted.QCed.fna")
+# Get all accessions
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.new.csv")
 
-jump_df <- fread("results/source_sink_analysis/putative_host_jumps.csv")
-
-accs <- jump_df %>% 
-  distinct(tip_name)
+meta %>%
+  select(accession) %>%
+  fwrite(str_glue("results/dnds_out/ncbi_annotation/all_gff.accessions.txt"),
+         col.names = F,
+         eol = "\n")
 
 # Download new files only
-done <- fread("results/dnds_out/ncbi_annotation/gene_annotations.290723.n8404.parsed.gff3")$V1
+done_df <- fread("results/dnds_out/ncbi_annotation/all_gene_annotations.061123.parsed.gff3")
 
-accs %>%
-  filter(!(tip_name %in% done)) %>%
+meta %>% 
+  distinct(accession) %>%
+  filter(!(accession %in% unique(done_df$V1))) %>%
   fwrite("results/dnds_out/ncbi_annotation/to_download.accessions.2.txt",
          col.names = F,
          eol = "\n")
 
+to_do <- accs %>%
+  filter(!(tip_name %in% done))
+  # fwrite("results/dnds_out/ncbi_annotation/to_download.accessions.2.txt",
+  #        col.names = F,
+  #        eol = "\n")
 
-# # Get all accessions
-# meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
-# meta %>%
-#   select(accession) %>%
-#   fwrite(str_glue("results/dnds_out/ncbi_annotation/all_gff.accessions.txt"),
-#          col.names = F,
-#          eol = "\n")
+# fna <- readDNAStringSet("data/genomes/all_viruses.220723.filt.formatted.QCed.fna")
+# good_alns <- fread("results/qc_out/good_alignments.csv")
+# jump_df <- fread("results/mutational_load_out/putative_host_jumps.csv") %>%
+#   filter(clique_name %in% good_alns$clique_name)
+# 
+# accs <- jump_df %>% 
+#   distinct(tip_name)
+
+# 
+# test <- jump_df %>%
+#   separate(clique_name, c("family"), "_") %>%
+#   filter(family %in% c("Spinareoviridae", "Sedoreoviridae"))
+# jump_df
+
 # 
 # chunk_list <- split(meta$accession,           
 #                     ceiling(seq_along(meta$accession) / 9999))

@@ -9,10 +9,10 @@ require(ggpubr)
 require(see)
 require(rstatix)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-  left_join(fread("data/metadata/parsed_host_metadata.csv"))
-
 genome_type <- fread("data/metadata/genome_type_metadata.csv")
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
+  left_join(genome_type)
+
 
 # Get host counts
 host_counts <- meta %>%
@@ -33,7 +33,8 @@ genome_length <- meta %>%
 
 dnds_list <- list.files("results/dnds_out/all_jumps.by_gene.temp_results/", full.names = T)
 dnds_df <- foreach(file_name = dnds_list, .combine = c("bind_rows")) %do% {
-  fread(file_name)
+  fread(file_name) %>%
+    mutate(across(everything(), as.character))
 }
 
 # Consider zeroes

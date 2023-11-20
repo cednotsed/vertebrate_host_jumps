@@ -8,8 +8,7 @@ require(rcompanion)
 require(ggpubr)
 require(see)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-  left_join(fread("data/metadata/parsed_host_metadata.csv"))
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
 
 genome_type <- fread("data/metadata/genome_type_metadata.csv")
 
@@ -54,7 +53,7 @@ clique_counts <- dnds_filt %>%
   summarise(n_cliques = n_distinct(clique_name)) %>%
   ungroup()
 
-# Get min. kaks
+# Get min. kaks per clique
 iter_df <- dnds_filt %>%
   distinct(clique_name, is_jump)
 
@@ -70,27 +69,39 @@ min_df <- foreach(i = seq(nrow(iter_df)), .combine = "bind_rows") %do% {
 # Merge data
 merged_df <- min_df %>%
   select(clique_name, is_jump, patristic_dist, min_kaks = kaks) %>%
-  # group_by(clique_name, is_jump) %>%
-  # summarise(min_kaks = min(kaks),
-            # min_dist = min(patristic_dist)) %>%
   separate(clique_name, c("family"), "_", remove = F) %>%
   left_join(genome_type) %>%
   left_join(host_counts) %>%
   left_join(genome_counts) %>%
   left_join(clique_counts)
 
+# merged_df <- dnds_filt %>%
+#   select(clique_name, is_jump, kaks) %>%
+#   group_by(clique_name, is_jump) %>%
+#   summarise(min_kaks = min(kaks)) %>%
+#   separate(clique_name, c("family"), "_", remove = F) %>%
+#   left_join(genome_type) %>%
+#   left_join(genome_counts) %>%
+#   left_join(host_counts) %>%
+#   left_join(clique_counts)
+
 merged_df %>%
   fwrite("results/dnds_out/parsed_min_dnds.csv")
 
 # Jump/non-jump counts
-merged_df %>%
-  group_by(is_jump) %>%
-  summarise(n = n())
+type_counts <- merged_df %>%
+  group_by(clique_name) %>%
+  summarise(n_types = n_distinct(is_jump)) %>%
+  filter(n_types == 2)
+
+merged_filt <- merged_df %>%
+  filter(clique_name %in% type_counts$clique_name)
+
 # Visualise overall dnds
-wilcox <- wilcox.test(log10(merged_df$min_kaks) ~ merged_df$is_jump,
+wilcox <- wilcox.test(log10(merged_filt$min_kaks) ~ merged_filt$is_jump,
                       alternative = "less")
 
-merged_df %>%
+merged_filt %>%
   ggplot(aes(x = is_jump, y = log10(min_kaks), fill = is_jump)) +
   geom_boxplot(position = position_nudge(x = 0.05, y = 0),
                width = 0.1,
@@ -108,15 +119,28 @@ ggsave("results/dnds_out/overall_jump_v_non_jump_dnds.pdf", width = 5, height = 
 
 # Correcting for family and n_genomes
 logreg <- glm(is_jump ~ log(n_genomes) + family + log(min_kaks),
-              data = merged_df,
+              data = merged_filt,
               family = "binomial")
 
 summary(logreg)
 exp(coef(logreg)[["log(min_kaks)"]])
-nrow(merged_df) - nrow(coef(summary(logreg)))
+nrow(merged_filt) - nrow(coef(summary(logreg)))
 
+pnorm(0.87062 / 0.17973, lower.tail = F)
 # Visualise by host range
-merged_df %>%
+
+# merged_df %>%
+#   ggplot(aes(x = n_hosts, y = log10(min_kaks), fill = is_jump, color = is_jump)) +
+#   geom_point() +
+#   theme_classic() +
+#   labs(x = "No. host genera", y = "log10(min. dn/ds)",
+#        color = "Is host jump?") +
+#   ylim(-2.4, 0.1) +
+#   scale_fill_manual(values = c("steelblue3", "indianred3")) +
+  # facet_grid(rows = vars(is_jump)) +
+  # geom_smooth(method = "lm")
+
+merged_filt %>%
   ggplot(aes(x = factor(n_hosts), y = log10(min_kaks), fill = is_jump)) +
   geom_boxplot(outlier.shape = NA) +
   theme_classic() +
@@ -127,6 +151,19 @@ merged_df %>%
 
 ggsave("results/dnds_out/dnds_v_host_range.pdf", width = 6, height = 3.5)
 
+merged_df %>%
+  ggplot(aes(x = n_hosts, y = log10(min_kaks), fill = is_jump, color = is_jump)) +
+  geom_point(color = "black",
+             pch = 21) +
+  theme_classic() +
+  labs(x = "No. host genera", y = "log10(min. dn/ds)",
+       color = "Is host jump?") +
+  # ylim(-2.4, 0.1) +
+  scale_fill_manual(values = c("steelblue3", "indianred3")) +
+  scale_color_manual(values = c("steelblue3", "indianred3")) +
+  geom_smooth(method = "lm")
+
+ggsave("results/dnds_out/dnds_v_host_range.scatter.pdf", width = 6, height = 3.5)
 
 # Test for difference in slopes
 formula_string <- "n_hosts ~ log(n_genomes) + family + log(min_kaks)"
@@ -141,8 +178,14 @@ nonjump_mod <- glm(as.formula(formula_string),
 nrow(merged_df %>% filter(is_jump)) - nrow(coef(summary(nonjump_mod)))
 nrow(merged_df %>% filter(!is_jump)) - nrow(coef(summary(nonjump_mod)))
 
+sink("results/dnds_out/jump_poisson_model.txt")
 summary(jump_mod)
+sink()
+
+sink("results/dnds_out/nonjump_poisson_model.txt")
 summary(nonjump_mod)
+sink()
+
 
 obs_slope_diff <- coef(jump_mod)[["log(min_kaks)"]] - coef(nonjump_mod)[["log(min_kaks)"]]
 obs_slope_diff
@@ -183,7 +226,14 @@ tibble(slope_diff = perm_morsels) %>%
 
 ggsave("results/dnds_out/permutation.diff_hosts.genus_counts.png", width = 8, height = 5)
 
-
+# lr <- lm(log(min_kaks) ~ is_jump + log(patristic_dist), 
+#    data = merged_df)
+# summary(lr)
+# hist(lr$residuals)
+# 
+# merged_df %>%
+#   ggplot(aes(log(patristic_dist), log(min_kaks), color = is_jump)) +
+#   geom_point()
 # summary(glm(n_hosts ~ log10(min_kaks), 
 #            data = plot_df %>% filter(is_jump),
 #            family = poisson()))

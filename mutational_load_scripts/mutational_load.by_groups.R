@@ -10,18 +10,17 @@ require(see)
 genome_type <- fread("data/metadata/genome_type_metadata.csv")
 
 meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-  left_join(fread("data/metadata/parsed_host_metadata.csv")) %>%
   left_join(genome_type)
 
-jump_df <- fread("results/mutational_load_out/host_jump_lists/diff_hosts.genus_counts.all_jumps.V2.csv")
+jump_df <- fread("results/ancestral_reconstruction_out/host_jump_lists/like2.diff_hosts.genus_counts.all_jumps.V2.csv")
 
 # Counts
-jump_df %>%
-  filter(!is_jump) %>%
-  distinct(clique_name) %>%
-  nrow()
+type_counts <- jump_df %>%
+  group_by(clique_name) %>%
+  summarise(n_types = n_distinct(is_jump)) %>%
+  arrange(n_types) %>%
+  filter(n_types == 2)
 
-# Get host counts
 host_counts <- meta %>%
   dplyr::rename(clique_name = cluster) %>% 
   filter(host_genus != "") %>%
@@ -40,20 +39,7 @@ clique_counts <- jump_df %>%
   ungroup()
 
 merged_df <- jump_df %>%
-  group_by(clique_name, is_jump) %>%
-  summarise(min_dist = min(patristic_dist)) %>%
-  separate(clique_name, c("family"), "_", remove = F) %>%
-  left_join(genome_type) %>%
-  left_join(host_counts) %>%
-  left_join(genome_counts) %>%
-  left_join(clique_counts)
-
-merged_df %>%
-  group_by(family) %>%
-  summarise(n = n_distinct(clique_name)) %>%
-  arrange(desc(n))
-
-merged_df <- jump_df %>%
+  filter(clique_name %in% type_counts$clique_name) %>%
   group_by(clique_name, is_jump) %>%
   summarise(min_dist = min(patristic_dist)) %>%
   separate(clique_name, c("family"), "_", remove = F) %>%
@@ -65,7 +51,8 @@ merged_df <- jump_df %>%
 type_list <- c("ssDNA", "dsDNA", "+ssRNA", "-ssRNA")
 
 plots <- foreach(type = type_list) %do% {
-  test <- merged_df %>% filter(genome_type == type)
+  test <- merged_df %>% 
+    filter(genome_type == type)
 
   formula_string <- "n_hosts ~ log(n_genomes) + family + log(min_dist)"
   jump_mod <- glm(as.formula(formula_string),

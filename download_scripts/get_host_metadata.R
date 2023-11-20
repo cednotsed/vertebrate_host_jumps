@@ -10,7 +10,28 @@ require(doParallel)
 dat <- fread("data/metadata/all_viruses.taxid10239.excl_provirus_env_lab_vax.220723.V2.csv") %>%
   rename_all(~tolower(gsub(" ", "_", .x)))
 
-all_tax_match <- gsub(" sp\\.", "", unique(dat$host)) %>% 
+# Parse host with more than two words
+word_count <- dat %>%
+  mutate(original_host = host) %>%
+  mutate(host = gsub("  ", " ", host)) %>%
+  distinct(original_host, host) %>%
+  mutate(n_words = str_count(host, "\\w+"))
+
+short_names <- word_count %>%
+  filter(n_words <= 2) %>%
+  mutate(host = gsub(" sp\\.| subsp\\.| subgen\\.", "", host))
+
+long_names <- word_count %>%
+  filter(n_words > 2) %>%
+  separate(host, c("host1", "host2"), " ", remove = F) %>%
+  mutate(host = str_glue("{host1} {host2}")) %>%
+  mutate(host = gsub(" sp\\.| subsp\\.| subgen\\.", "", host))
+
+combined <- bind_rows(long_names, short_names)
+
+host_list <- unique(combined$host)
+
+all_tax_match <- host_list %>% 
   name2taxid(db = "ncbi", out_type = "summary") %>%
   mutate(rank = taxid2rank(id)) %>%
   dplyr::rename(host = name, taxid = id, rank = rank) %>%
@@ -22,10 +43,6 @@ all_tax_match <- gsub(" sp\\.", "", unique(dat$host)) %>%
                      "suborder", "subphylum", "phylum")) %>%
   distinct()
 
-# unique(dat$host) %>% 
-#   name2taxid(db = "ncbi", out_type = "summary") %>%
-#   mutate(rank = taxid2rank(id)) %>%
-#   distinct(rank) %>% View()
 # cl <- makeCluster(12)
 # registerDoParallel(cl)
 

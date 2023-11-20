@@ -37,3 +37,8 @@ bind_rows(morsels) %>%
 
 ggsave("results/clique_classification_out/clustering_metrics.ICTV.pdf", width = 5, height = 3)
 
+bind_rows(morsels) %>%
+  filter(type == "species") %>%
+  filter(t == 0.15) %>%
+  summarise(median_ari = median(ari, na.rm = T),
+            median_ami = median(ami, na.rm = T))

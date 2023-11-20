@@ -6,20 +6,21 @@ require(foreach)
 require(doParallel)
 require(rcompanion)
 require(see)
+require(ggpubr)
 
 genome_type <- fread("data/metadata/genome_type_metadata.csv")
 
 meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-  left_join(fread("data/metadata/parsed_host_metadata.csv")) %>%
   left_join(genome_type)
 
-jump_df <- fread("results/mutational_load_out/host_jump_lists/diff_hosts.genus_counts.all_jumps.V2.csv")
+jump_df <- fread("results/ancestral_reconstruction_out/host_jump_lists/like2.diff_hosts.genus_counts.all_jumps.V2.csv")
 
 # Counts
-jump_df %>%
-  filter(!is_jump) %>%
-  distinct(clique_name) %>%
-  nrow()
+type_counts <- jump_df %>%
+  group_by(clique_name) %>%
+  summarise(n_types = n_distinct(is_jump)) %>%
+  arrange(n_types) %>%
+  filter(n_types == 2)
 
 # Get host counts
 host_counts <- meta %>%
@@ -40,6 +41,7 @@ clique_counts <- jump_df %>%
   ungroup()
 
 merged_df <- jump_df %>%
+  filter(clique_name %in% type_counts$clique_name) %>%
   group_by(clique_name, is_jump) %>%
   summarise(min_dist = min(patristic_dist)) %>%
   separate(clique_name, c("family"), "_", remove = F) %>%
@@ -48,9 +50,18 @@ merged_df <- jump_df %>%
   left_join(genome_counts) %>%
   left_join(clique_counts)
 
-# merged_df %>%
-#   fwrite("results/mutational_load_out/host_jump_lists/parsed_min_mutational_loads.csv")
+merged_df %>%
+  group_by(is_jump) %>%
+  summarise(n = n_distinct(clique_name))
+
+merged_df %>%
+  fwrite("results/mutational_load_out/host_jump_lists/parsed_min_mutational_loads.csv")
+
 # Visualise host counts
+host_df <- host_counts %>%
+  left_join(genome_counts)
+
+cor.test(host_df$n_hosts, host_df$n_genomes)
 # host_counts %>%
 #   filter(clique_name %in% merged_df$clique_name) %>%
 #   ggplot(aes(x = n_hosts)) +
@@ -64,10 +75,18 @@ merged_df <- jump_df %>%
 # 
 # ggsave("results/mutational_load_out/num_cliques_per_host_count.png", width = 8, height = 5)
 
+# merged_df %>%
+#   filter(is_jump) %>%
+#   group_by(n_hosts) %>%
+#   summarise(n = n_distinct(clique_name)) %>%
+#   View()
+
 # Visualise overall mutational distance
 wilcox <- wilcox.test(log10(merged_df$min_dist) ~ merged_df$is_jump,
             alternative = "less")
+
 table(merged_df$is_jump)
+
 merged_df %>%
   ggplot(aes(x = is_jump, y = log10(min_dist), fill = is_jump)) +
   geom_boxplot(position = position_nudge(x = 0.05, y = 0),
@@ -92,16 +111,47 @@ logreg <- glm(is_jump ~ log(n_genomes) + family + log(min_dist),
 
 nrow(merged_df) - nrow(coef(summary(logreg)))
 coef(summary(logreg))
-
+summary(logreg)
 exp(coef(logreg)[["log(min_dist)"]])
 
-merged_df %>%
+# Plot mutational threshold against host range
+# lr <- lm(log(min_dist) ~ family,
+#          data = merged_df)
+# hist(lr$residuals)
+# shapiro.test(lr$residuals)
+# 
+# 
+# corr_mod <- glm(n_hosts ~ log(n_genomes) + family,
+#                 data = merged_df,
+#                 family = poisson())
+# 
+plot_df <- merged_df
+#   add_column(corr_range = corr_mod$residuals)
+
+
+plot_df %>%
+  ggplot(aes(x = n_hosts, y = log10(min_dist), fill = is_jump, color = is_jump, shape = is_jump)) +
+  geom_smooth(method = "lm", 
+              fill = "grey") +
+  geom_point(color = "black", alpha = 0.9) +
+  theme_classic() +
+  labs(x = "No. host genera", y = "Log10(min. dist.)",
+       fill = "Is host jump?") +
+  scale_shape_manual(values = c(22, 21)) +
+  scale_fill_manual(values = c("steelblue3", "indianred3")) +
+  scale_color_manual(values = c("steelblue3", "indianred3"))
+  # facet_grid(.~is_jump)
+
+ggsave("results/mutational_load_out/mutational_threshold_visualisation.scatter.pdf", width = 6, height = 3.5)
+
+plot_df %>%
   ggplot(aes(x = factor(n_hosts), y = log10(min_dist), fill = is_jump)) +
     geom_boxplot(outlier.shape = NA) +
     theme_classic() +
     labs(x = "No. host genera", y = "log10(min. dist.)",
          fill = "Is host jump?") +
   scale_fill_manual(values = c("steelblue3", "indianred3"))
+  # facet_grid(rows = vars(is_jump))
 
 ggsave("results/mutational_load_out/mutational_threshold_visualisation.pdf", width = 6, height = 3.5)
 
@@ -120,6 +170,16 @@ nonjump_mod <- glm(as.formula(formula_string),
 nrow(merged_df %>% filter(!is_jump)) - nrow(coef(summary(nonjump_mod)))
 obs_slope_diff <- coef(jump_mod)[["log(min_dist)"]] - coef(nonjump_mod)[["log(min_dist)"]]
 length(coef(jump_mod))
+
+# Save model results
+sink("results/mutational_load_out/jump_poisson_model.txt")
+print(summary(jump_mod))
+sink()
+
+sink("results/mutational_load_out/nonjump_poisson_model.txt")
+print(summary(nonjump_mod))
+sink()
+
 # Permutation test for difference in slopes
 set.seed(66)
 

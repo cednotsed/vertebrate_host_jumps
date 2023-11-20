@@ -9,8 +9,7 @@ require(ggpubr)
 require(see)
 require(rstatix)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-  left_join(fread("data/metadata/parsed_host_metadata.csv"))
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
 
 genome_type <- fread("data/metadata/genome_type_metadata.csv")
 
@@ -32,36 +31,42 @@ genome_length <- meta %>%
   summarise(median_length = median(genome_length))
 
 dnds_list <- list.files("results/dnds_out/all_jumps.by_gene.temp_results/", full.names = T)
-dnds_df <- foreach(file_name = dnds_list, .combine = c("bind_rows")) %do% {
-  fread(file_name)
+
+dnds_df <- foreach(file_name = dnds_list, .combine = "bind_rows") %do% {
+  if(file.size(file_name) > 246) {
+    fread(file_name)
+  }
 }
 
-dnds_df %>% 
-  mutate(ks = ifelse(ks == 0 | ks < 0, 0, ks),
-         ka = ifelse(ka == 0, 0, ka)) %>%
-  filter(!(ka != 0 & ks != 0)) %>%
-  nrow() 
+type_counts <- dnds_df %>%
+  group_by(clique_name) %>%
+  summarise(n = n_distinct(is_jump)) %>%
+  filter(n == 2)
 
-110067 / nrow(dnds_df)
-
+# Get only jumps with min dnds
+overall_dnds <- fread("results/dnds_out/parsed_min_dnds.csv")
 
 # Remove zeroes
-dnds_filt <-  dnds_df %>%
-  # c %>%
+dnds_filt <- overall_dnds %>%
+  left_join(dnds_df) %>%
     mutate(ka = ifelse(ka <= 0, 0, ka),
            ks = ifelse(ks <= 0, 0, ks)) %>%
   filter(ka != 0 & ks != 0) %>%
-  mutate(log_kaks = log10(ka / ks))
+  mutate(log_kaks = log10(ka / ks)) %>%
+  filter(clique_name %in% type_counts$clique_name)
 
-# Replace zeroes
-# dnds_filt <- dnds_df %>%
-#   mutate(ka = ifelse(ka <= 0, 0, ka),
-#          ks = ifelse(ks <= 0, 0, ks)) %>%
-#   mutate(log_kaks = case_when(ka == 0 & ks == 0 ~ NA,
-#                               ka > 0 & ks == 0 ~ log10(1e3),
-#                               ka == 0 & ks > 0 ~ log10(1e-3),
-#                               ka > 0 & ks > 0 ~ log10(ka / ks))) %>%
-#   filter(!is.na(log_kaks))
+# Get minimum  
+iter_df <- dnds_filt %>%
+  distinct(clique_name, is_jump)
+
+min_df <- foreach(i = seq(nrow(iter_df)), .combine = "bind_rows") %do% {
+  row <- iter_df[i, ]
+  dnds_filt %>%
+    filter(clique_name == row$clique_name,
+           is_jump == row$is_jump) %>%
+    arrange(kaks) %>%
+    head(1)
+}
 
 clique_counts <- dnds_filt %>%
   left_join(host_counts) %>%
@@ -71,6 +76,7 @@ clique_counts <- dnds_filt %>%
   ungroup()
 
 merged_df <- dnds_filt %>%
+  group_by(clique_name, is_jump)
   separate(clique_name, c("family"), "_", remove = F) %>%
   left_join(genome_type) %>%
   left_join(host_counts) %>%
@@ -211,7 +217,7 @@ for(i in seq(length(dat_list))) {
 
   corr_lr <- lm(log_kaks ~ clique_name,
                 data = dat)
-  
+
   dat <- dat %>% 
     add_column(corr_effect = corr_lr$residuals) %>%
     mutate(gene_type = factor(gene_type, c("Structural", "Entry", "Replication-associated",

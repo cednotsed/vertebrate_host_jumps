@@ -9,7 +9,7 @@ require(doParallel)
 
 good_alns <- fread("results/qc_out/good_alignments.csv")
 
-jump_df <- fread("results/mutational_load_out/host_jump_lists/diff_hosts.genus_counts.all_jumps.V2.csv") %>%
+jump_df <- fread("results/ancestral_reconstruction_out/host_jump_lists/like2.diff_hosts.genus_counts.all_jumps.V2.csv") %>%
   as_tibble() %>%
   filter(clique_name %in% good_alns$clique_name) %>%
   filter(anc_name != "Root")
@@ -51,13 +51,12 @@ morsels <- foreach(clique = clique_list) %do% {
                    gene_annot = gene_annot,
                    ka = ka,
                    ks = ks)
-    
       
     return(temp)
   }
   
   merged <- bind_rows(crumbs) %>%
-    left_join(jump_df)
+    inner_join(jump_df)
   
   fwrite(merged, str_glue("results/dnds_out/all_jumps.by_gene.temp_results/{clique}.csv"))
   
@@ -68,5 +67,4 @@ morsels <- foreach(clique = clique_list) %do% {
 stopCluster(cl)
 
 res <- bind_rows(morsels)
-# 
-fwrite(res, "results/dnds_out/all_jumps.per_gene_dnds.diff_hosts.genus_counts.csv")
+fwrite(res, "results/dnds_out/all_jumps.by_gene.diff_hosts.genus_counts.csv")

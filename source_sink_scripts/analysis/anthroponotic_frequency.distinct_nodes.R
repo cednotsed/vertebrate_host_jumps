@@ -10,79 +10,51 @@ require(randomcoloR)
 require(see)
 require(ggrepel)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
-host_meta <- fread("data/metadata/parsed_host_metadata.csv")
 genome_meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-  mutate(host = ifelse(grepl("sp\\.", host), 
-                       gsub(" sp\\.", "", host), 
-                       host)) %>%
-  mutate(host = ifelse(host %in% c("Homo", "Homo sapiens"), 
-                       "Homo sapiens", 
-                       host)) %>%
-  filter(host != "") %>%
   dplyr::rename(clique_name = cluster)
 
-good_alns <- fread("results/qc_out/good_alignments.csv")
-
-jump_df <- fread("results/mutational_load_out/putative_host_jumps.csv") %>%
-  as_tibble() %>%
-  filter(clique_name %in% good_alns$clique_name)
+jump_df <- fread("results/ancestral_reconstruction_out/host_jump_lists/like2.diff_hosts.genus_counts.all_jumps.V2.csv") %>%
+  filter(is_jump)
 
 zoo_df <- jump_df %>%
-  mutate(anc_state = ifelse(anc_state %in% c("Homo", "Homo sapiens"), 
-                            "Homo sapiens", anc_state),
-         tip_state = ifelse(tip_state %in% c("Homo", "Homo sapiens"), 
-                            "Homo sapiens", tip_state)) %>%
-  filter(anc_state == "Homo sapiens" | tip_state == "Homo sapiens") %>%
-  mutate(event_type = ifelse(anc_state != "Homo sapiens", "Zoonotic", "Anthroponotic")) %>%
-  mutate(host = ifelse(event_type == "Zoonotic", anc_state, tip_state)) %>%
-  inner_join(host_meta)
+  filter(anc_genus == "Homo" | tip_genus == "Homo") %>%
+  mutate(event_type = ifelse(anc_genus != "Homo", "Zoonotic", "Anthroponotic")) %>%
+  mutate(host = ifelse(event_type == "Zoonotic", anc_state, tip_state))
 
-iter_df <- zoo_df %>% distinct(clique_name, anc_state, tip_state, event_type)
+# Allow only one hostA-hostB jump per node
+zoo_filt <- zoo_df %>%
+  distinct(anc_state, tip_state, anc_name, clique_name, .keep_all = T)
 
-zoo_filt <- foreach(i = seq(nrow(iter_df)), .combine = "bind_rows") %do% {
-  # i = 1
-  row <- iter_df[i, ]
-  anc <- row$anc_state
-  tip <- row$tip_state
-  clique <- row$clique_name
-  
-  temp_filt <- zoo_df %>%
-    filter(clique_name == clique,
-           anc_state == anc,
-           tip_state == tip) %>%
-      distinct(anc_name, .keep_all = T)
-  
-  return(temp_filt)
-}
-
-# Bootstrap zoonotic proportion
+zoo_filt %>%
+  filter(clique_name == "Coronaviridae_12") %>%
+  filter(event_type == "Zoonotic")
+  group_by(event_type) %>%
+  summarise(n = n())
+zoo_filt %>%
+  group_by(family, event_type) %>%
+  summarise(n = n())
+# Observed zoonotic proportion
 obs_df <- zoo_filt %>%
   group_by(event_type) %>%
   summarise(n_jumps = n()) %>%
   mutate(prop = n_jumps / sum(n_jumps))
 
-clique_list <- unique(zoo_filt$clique_name)
-
-set.seed(66)
+# Bootstrap analysis
 cl <- makeCluster(12)
 registerDoParallel(cl)
 
-boot_morsels <- foreach(i = seq(1000),
-                        .packages = c("foreach", "tidyverse")) %dopar% {
-                          temp_morsels <- foreach(clique_name = clique_list) %do% {
-                            zoo_filt %>%
-                              filter(clique_name == clique_name)
-                          }
-                          
-                          temp_df <- bind_rows(temp_morsels) %>%
-                            sample_n(nrow(zoo_filt), replace = T) %>%
-                            group_by(event_type) %>%
-                            summarise(n_jumps = n()) %>%
-                            pivot_wider(names_from = "event_type", values_from = "n_jumps")
-                          
-                          return(temp_df)
-                        }
+set.seed(66)
+
+boot_morsels <- foreach(i = seq(1000), .packages = c("foreach", "tidyverse")) %dopar% {
+  # Resample all jumps
+  temp_df <- zoo_filt %>%
+    sample_n(nrow(zoo_filt), replace = T) %>%
+    group_by(event_type) %>%
+    summarise(n_jumps = n()) %>%
+    pivot_wider(names_from = "event_type", values_from = "n_jumps")
+  
+  return(temp_df)
+}
 
 stopCluster(cl)
 
@@ -129,22 +101,23 @@ ggsave("results/source_sink_analysis/anthroponotic_frequency.pdf",
 
 
 # Explore jumps by clique
-zoo_meta <- meta %>%
-  filter(accession %in% unique(zoo_df$tip_name))
+# zoo_meta <- meta %>%
+#   filter(accession %in% unique(zoo_df$tip_name))
 
-species_map_df <- foreach(clique = unique(zoo_df$clique_name),
-                          .combine = "bind_rows") %do% {
-                            temp <- zoo_meta %>%
-                              filter(cluster == clique) %>%
-                              filter(species != "")
-                            
-                            tibble(clique_name = clique,
-                                   species_string = paste0(unique(temp$species), collapse = "; "))
-                          }
-
-species_map_df %>% 
-  distinct(clique_name) %>%
-  nrow()
+# # Get viral species to clique mapping
+# species_map_df <- foreach(clique = unique(zoo_df$clique_name), .combine = "bind_rows") %do% {
+#   temp <- zoo_meta %>%
+#     filter(cluster == clique) %>%
+#     filter(species != "")
+#   
+#   tibble(clique_name = clique,
+#          species_string = paste0(unique(temp$species), collapse = "; "))
+# }
+# 
+# species_map_df %>% View()
+#   # distinct(clique_name) %>%
+#   View()
+#   nrow()
 
 # No. of distinct animals
 
@@ -154,55 +127,62 @@ zoo_filt %>%
   group_by(event_type) %>%
   summarise(n = n())
 
-# CoV-2 jumps
+# CoV-2
 zoo_filt %>%
   filter(clique_name == "Coronaviridae_12") %>%
   group_by(event_type) %>%
-  summarise(n = n())
+  summarise(n = n()) %>%
+  mutate(prop = n / 383)
 
+# MERS
 zoo_filt %>%
   filter(clique_name == "Coronaviridae_26") %>%
   group_by(event_type) %>%
-  summarise(n = n())
+  summarise(n = n()) %>%
+  mutate(prop = n / 383)
 
 zoo_filt %>%
-  filter(clique_name == "Orthomyxoviridae_1") %>%
+  filter(clique_name %in% c("Orthomyxoviridae_1", "Orthomyxoviridae_2")) %>%
   group_by(event_type) %>%
-  summarise(n = n())
+  summarise(n = n()) %>%
+  mutate(prop = n / 383)
 
-## Removing SARS-CoV-2 ##
+zoo_filt %>%
+  filter(!(clique_name %in% c("Coronaviridae_26", "Coronaviridae_12",
+                              "Orthomyxoviridae_1", "Orthomyxoviridae_2"))) %>%
+  group_by(event_type) %>%
+  summarise(n = n()) %>%
+  mutate(prop = n / sum(n))
+# zoo_filt %>%
+#   filter(clique_name == "Orthomyxoviridae_2") %>%
+#   group_by(event_type) %>%
+#   summarise(n = n())
+
+## Removing SARS-CoV-2 and Influenza A and MERS ##
 # Bootstrap zoonotic proportion
 zoo_filt2 <- zoo_filt %>%
-  filter(clique_name != "Coronaviridae_12")
+  filter(!(clique_name %in% c("Coronaviridae_26", "Coronaviridae_12",
+                              "Orthomyxoviridae_1", "Orthomyxoviridae_2")))
 
 obs_df2 <- zoo_filt2 %>%
   group_by(event_type) %>%
   summarise(n_jumps = n()) %>%
   mutate(prop = n_jumps / sum(n_jumps))
 
-clique_list <- unique(zoo_filt2$clique_name)
-
-set.seed(66)
 cl <- makeCluster(12)
 registerDoParallel(cl)
 
-boot_morsels <- foreach(i = seq(1000),
-                        .packages = c("foreach", "tidyverse")) %dopar% {
-                          # clique_temp <- sample(clique_list, length(clique_list), replace = T)
-                          
-                          temp_morsels <- foreach(clique_name = clique_list) %do% {
-                            zoo_filt2 %>%
-                              filter(clique_name == clique_name)
-                          }
-                          
-                          temp_df <- bind_rows(temp_morsels) %>%
-                            sample_n(nrow(zoo_filt2), replace = T) %>%
-                            group_by(event_type) %>%
-                            summarise(n_jumps = n()) %>%
-                            pivot_wider(names_from = "event_type", values_from = "n_jumps")
-                          
-                          return(temp_df)
-                        }
+set.seed(66)
+
+boot_morsels <- foreach(i = seq(1000), .packages = c("foreach", "tidyverse")) %dopar% {
+  temp_df <- zoo_filt2 %>%
+    sample_n(nrow(zoo_filt2), replace = T) %>%
+    group_by(event_type) %>%
+    summarise(n_jumps = n()) %>%
+    pivot_wider(names_from = "event_type", values_from = "n_jumps")
+  
+  return(temp_df)
+}
 
 stopCluster(cl)
 
@@ -230,7 +210,7 @@ p_val<- signif(t_test$p.value, 3)
 zoo_plot_df %>%
   ggplot(aes(x = event_type, y = n_jumps, fill = event_type)) +
   geom_violin(alpha = 0.5) +
-  geom_point(data = obs_df, 
+  geom_point(data = obs_df2, 
              aes(x = event_type),
              size = 3) +
   geom_segment(data = CI_df,
@@ -242,10 +222,14 @@ zoo_plot_df %>%
   labs(x = "Transmission type", y = "No. of host jumps",
        title = str_glue("Paired t-test: t = {t_val}, d.f.={deg_freedom}, p={p_val}"))
 
-ggsave("results/source_sink_analysis/anthroponotic_frequency.pdf", 
+ggsave("results/source_sink_analysis/anthroponotic_frequency.remove_viruses.pdf",
        dpi = 600, 
        width = 4,
        height = 3)
+# ggsave("results/source_sink_analysis/anthroponotic_frequency.pdf", 
+#        dpi = 600, 
+#        width = 4,
+#        height = 3)
 # zoo_filt %>%
 #   group_by(event_type) %>%
 #   group_by(event_type) %>%

@@ -9,7 +9,8 @@ require(igraph)
 require(Hmisc)
 
 threshold <- 0.15
-meta <- fread("data/metadata/all_viruses.220723.filt.QCed.csv")
+meta <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%
+  select(-host_genus, -host_species)
 
 set.seed(66)
 
@@ -74,19 +75,33 @@ final_meta %>%
 
 final_meta %>%
   nrow()
-# final_meta
-# old_meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.OLD.csv")
-# test <- old_meta %>% 
-#   select(accession, cluster_old = cluster) %>%
-#   right_join(final_meta) 
 
-# # Append columns
-# to_add <- fread("data/metadata/all_viruses.220723.filt.QCed.csv") %>%
-#   select(accession, molecule_type, is_segmented, is_circular, host)
+# # Parse host columns and add host metadata
+# old_meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.OLD.csv")
+# host_meta <- fread("data/metadata/parsed_host_metadata.csv")
 # 
-# final_meta <- fread("results/clique_classification_out/archive/final_cluster_metadata.220723.backup.csv")
+# # Parse host with more than two words
+# word_count <- old_meta %>%
+#   mutate(original_host = host) %>%
+#   mutate(host = gsub("  ", " ", host)) %>%
+#   mutate(n_words = str_count(host, "\\w+"))
 # 
-# added <- final_meta %>%
-#   select(-host_genus, -host_species) %>%
-#   left_join(to_add)
-#   fwrite(added, "results/clique_classification_out/final_cluster_metadata.220723.csv")
+# short_names <- word_count %>%
+#   filter(n_words <= 2) %>%
+#   mutate(host = gsub(" sp\\.| subsp\\.| subgen\\.", "", host))
+# 
+# long_names <- word_count %>%
+#   filter(n_words > 2) %>%
+#   separate(host, c("host1", "host2"), " ", remove = F) %>%
+#   mutate(host = str_glue("{host1} {host2}")) %>%
+#   mutate(host = gsub(" sp\\.| subsp\\.| subgen\\.", "", host))
+# 
+# combined <- bind_rows(long_names, short_names) %>%
+#   mutate(host = ifelse(!(host %in% host_meta$host),
+#                        word(host, 1),
+#                        host)) %>%
+#   left_join(host_meta) %>%
+#   select(-host1, -host2, -n_words)
+# 
+# fwrite(combined, "results/clique_classification_out/final_cluster_metadata.220723.csv",
+#        eol = "\n")

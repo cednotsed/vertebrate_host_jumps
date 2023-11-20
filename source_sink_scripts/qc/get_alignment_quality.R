@@ -51,9 +51,6 @@ morsels <- foreach(clique_name = clique_list) %do% {
 
 res <- bind_rows(morsels)
 
-meta %>%
-  filter(cluster == "Hepadnaviridae_1") %>%
-  distinct(genus)
 res %>% arrange(prop_length_retained)
 res %>%
   ggplot() +
@@ -61,7 +58,10 @@ res %>%
                  bins = 50) +
   labs(x = "Prop. of genome length retained",
        y = "No. of viral cliques") +
-  theme_bw()
+  theme_bw() +
+  geom_vline(xintercept = 0.8, 
+             color = "red",
+             lty = "dashed")
 
 ggsave("results/source_sink_analysis/prop_alignment_unmasked.pdf", dpi = 300, width = 5, height = 5)
 

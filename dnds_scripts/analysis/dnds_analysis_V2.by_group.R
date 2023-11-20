@@ -7,9 +7,7 @@ require(doParallel)
 require(rcompanion)
 require(see)
 
-meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv") %>%
-  left_join(fread("data/metadata/parsed_host_metadata.csv"))
-
+meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.csv")
 genome_type <- fread("data/metadata/genome_type_metadata.csv")
 
 # Get host counts
@@ -29,7 +27,7 @@ genome_length <- meta %>%
   group_by(clique_name) %>%
   summarise(median_length = median(genome_length))
 
-dnds_list <- list.files("results/dnds_out/all_jumps.by_gene.temp_results/", full.names = T)
+dnds_list <- list.files("results/dnds_out/all_jumps.temp_results/", full.names = T)
 dnds_df <- foreach(file_name = dnds_list, .combine = c("bind_rows")) %do% {
   fread(file_name)
 }
@@ -43,7 +41,7 @@ dnds_filt <-  dnds_df %>%
   mutate(kaks = ka / ks)
 
 # Get min. kaks
-iter_df <- dnds_filt %>%
+iter_df <- dnds_df %>%
   distinct(clique_name, is_jump)
 
 min_df <- foreach(i = seq(nrow(iter_df)), .combine = "bind_rows") %do% {
@@ -55,12 +53,18 @@ min_df <- foreach(i = seq(nrow(iter_df)), .combine = "bind_rows") %do% {
     head(1)
 }
 
-clique_counts <- dnds_filt %>%
+clique_counts <- dnds_df %>%
   left_join(host_counts) %>%
   ungroup() %>%
   group_by(n_hosts) %>%
   summarise(n_cliques = n_distinct(clique_name)) %>%
   ungroup()
+
+# Type counts
+type_counts <- dnds_filt %>%
+  group_by(clique_name) %>%
+  summarise(n = n_distinct(is_jump)) %>%
+  filter(n == 2)
 
 merged_df <- min_df %>%
   select(clique_name, is_jump, patristic_dist, min_kaks = kaks) %>%
@@ -69,6 +73,7 @@ merged_df <- min_df %>%
   left_join(host_counts) %>%
   left_join(genome_counts) %>%
   left_join(clique_counts)
+  # filter(clique_name %in% type_counts$clique_name)
 
 type_list <- c("ssDNA", "dsDNA", "+ssRNA", "-ssRNA")
 
@@ -110,8 +115,7 @@ plots <- foreach(type = type_list) %do% {
 }
 
 
-plt <- egg::ggarrange(plots = plots,
-                      )
+plt <- egg::ggarrange(plots = plots)
 
 ggsave("results/dnds_out/dnds_threshold.by_groups.pdf", 
        width = 14, height = 5, dpi = 600,

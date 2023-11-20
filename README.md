@@ -12,7 +12,20 @@ DOI: https://doi.org/10.1101/2023.09.01.555953
 5. [Mash genomes within each family](phylogenetic_scripts/run_mash_multiple.sh)
 6. [Create NJ trees and run InfoMap to generate final clusters](clique_classification_scripts/generate_final_clusters.R)
 7. Assess performance metrics:
-   a. [Concordance with NCBI taxonomy](clique_classification_scripts/optimise_threshold_for_metrics.R)
-   b. [Concordance with ICTV taxonomy](clique_classification_scripts/optimise_threshold_for_metrics.ICTV.R)
-   c. [Clique monophyly](clique_classification_scripts/optimise_threshold_for_monophyly_V2.R)
+   * [Concordance with NCBI taxonomy](clique_classification_scripts/optimise_threshold_for_metrics.R)
+   * [Concordance with ICTV taxonomy](clique_classification_scripts/optimise_threshold_for_metrics.ICTV.R)
+   * [Clique monophyly](clique_classification_scripts/optimise_threshold_for_monophyly_V2.R)
 
+## Tree rooting
+1. [Extract sequences for viral cliques](ancestral_reconstruction_scripts/rooting/get_mini_tree_genomes.all_jumps.even_further.R), including 10 sequences where the minimum Mash distance to any sequence in the clique of interest is 0.3-0.5.
+2. [Identify suitable tips to root viral cliques](ancestral_reconstruction_scripts/rooting/get_roots_for_clique_trees.even_further.R)
+
+## Phylogenetic reconstruction
+1. [Align](phylogenetic_scripts/align_multiple_genomes_mafft.sh) clique sequences
+2. [Mask](phylogenetic_scripts/mask_alignment.R) gappy positions
+3. [Build tree](phylogenetic_scripts/build_trees_with_bootstraps_myriad.sh) with ancestral sequence reconstruction toggled
+
+## Ancestral host reconstruction
+1. [Identifying host jumps](ancestral_reconstruction_scripts/varying_thresholds/ancestral_reconstruction.varying_threshold.R)
+2. [Identifying non-host jumps](ancestral_reconstruction_scripts/varying_thresholds/ancestral_reconstruction.varying_threshold.R)
+3. [Parse and filter](ancestral_reconstruction_scripts/varying_thresholds/get_jump_non_jump.V2.R) host jumps and non-host jumps

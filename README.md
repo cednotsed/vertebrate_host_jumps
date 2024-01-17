@@ -1,5 +1,5 @@
 # Crossing host boundaries: the evolutionary drivers and correlates of viral host jumps
-Authors: Cedric C.S. Tan ([email me!](cedriccstan@gmail.com)), Lucy van Dorp, Francois Balloux
+Authors: Cedric C.S. Tan (cedriccstan@gmail.com), Lucy van Dorp, Francois Balloux
 
 DOI: https://doi.org/10.1101/2023.09.01.555953
 

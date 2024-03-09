@@ -156,7 +156,11 @@ circo_df <- merged_df %>%
 combined_df <- bind_rows(cov_df, para_df, rhab_df, circo_df) %>%
   mutate(gene_type = ifelse(gene_type == "Accessory", "Auxiliary", gene_type))
 
-# fwrite(combined_df, "results/dnds_out/parsed_dnds.by_gene.csv")
+combined_df %>%
+  group_by(family) %>%
+  summarise(n = n())
+
+fwrite(combined_df, "results/dnds_out/parsed_dnds.by_gene.csv")
 
 dat_list <- list(Coronaviridae = cov_df, Paramyxoviridae = para_df,
                  Rhabdoviridae = rhab_df, Circoviridae = circo_df)

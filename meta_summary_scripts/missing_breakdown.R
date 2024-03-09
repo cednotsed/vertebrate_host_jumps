@@ -48,7 +48,7 @@ meta %>%
   filter(host_species != "Homo sapiens",
          host_genus != "Homo") %>%
   mutate(host_genus = ifelse(host_genus == "",
-                               "Missing", host_genus)) %>%
+                               "Missing", host_genus)) %>% nrow()
   summarise(prop_missing = sum(host_genus == "Missing") / n())
 
 # Overall date missing

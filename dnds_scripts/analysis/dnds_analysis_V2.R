@@ -85,9 +85,6 @@ merged_df <- min_df %>%
 #   left_join(host_counts) %>%
 #   left_join(clique_counts)
 
-merged_df %>%
-  fwrite("results/dnds_out/parsed_min_dnds.csv")
-
 # Jump/non-jump counts
 type_counts <- merged_df %>%
   group_by(clique_name) %>%
@@ -97,6 +94,8 @@ type_counts <- merged_df %>%
 merged_filt <- merged_df %>%
   filter(clique_name %in% type_counts$clique_name)
 
+merged_filt %>%
+  fwrite("results/dnds_out/parsed_min_dnds.csv")
 # Visualise overall dnds
 wilcox <- wilcox.test(log10(merged_filt$min_kaks) ~ merged_filt$is_jump,
                       alternative = "less")

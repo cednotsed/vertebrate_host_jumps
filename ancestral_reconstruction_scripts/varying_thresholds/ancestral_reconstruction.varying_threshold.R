@@ -20,7 +20,7 @@ meta <- fread("results/clique_classification_out/final_cluster_metadata.220723.c
 host_meta <- meta %>%
   distinct(host, host_species, host_genus, host_family, host_class, host_order)
 
-like_threshold <- 10
+like_threshold <- 2
 
 # Create result directory
 res_dir <- str_glue("results/ancestral_reconstruction_out/varying_thresholds/ancestral_reconstructions.like{like_threshold}")
@@ -52,7 +52,7 @@ length(tree_paths)
 cl <- makeCluster(12)
 registerDoParallel(cl)
 
-root_df <- fread("results/source_sink_analysis/final_source_sink_roots.csv")
+root_df <- fread("results/ancestral_reconstruction_out/final_source_sink_roots.csv")
 
 foreach(tree_path = tree_paths,
         .packages = c("tidyverse", "ape", "castor",
@@ -62,10 +62,10 @@ foreach(tree_path = tree_paths,
   # tree_path = tree_paths[1]
                         
   # Reinitialise variables
-  root_df <- fread("results/source_sink_analysis/final_source_sink_roots.csv")
+  root_df <- fread("results/ancestral_reconstruction_out/final_source_sink_roots.csv")
   res_dir <- str_glue("results/ancestral_reconstruction_out/varying_thresholds/ancestral_reconstructions.like{like_threshold}")
   tree_dir <- "data/trees/source_sink_mini_trees/without_outgroup.masked"
-  like_threshold <- 10
+  like_threshold <- 2
   
   # Read tree
   tree <- ape::read.tree(str_glue("{tree_dir}/{tree_path}"))

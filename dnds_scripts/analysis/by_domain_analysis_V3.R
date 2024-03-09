@@ -68,7 +68,7 @@ for (virus in c("IBV", "MERS", "SC2")) {
     # mutate(log_kaks = ifelse(ka == 0 | ks == 0, NA, log10(ka / ks))) %>%
     mutate(log_kaks = log10((ka) / (ks))) %>%
     # mutate(log_kaks = log10(ks)) %>%
-    # mutate(is_zero = (ka == 1e-6 | ks == 1e-6)) %>%
+    mutate(virus_name = virus) %>%
     arrange(ka) %>%
     left_join(jump_df)
   # bind_rows(morsels) %>%
@@ -81,6 +81,8 @@ for (virus in c("IBV", "MERS", "SC2")) {
   #   filter(!is.na(log_kaks)) %>%
   #   group_by(domain, is_jump) %>%
   #   summarise(n = n_distinct(tip_name))
+  
+  fwrite(plot_df, str_glue("results/dnds_out/by_domain_V2/{virus}.csv"))
   
   count_df <- plot_df %>%
     mutate(domain = factor(domain, unique(annot_df$domain)),

@@ -32,8 +32,20 @@ zoo_df <- jump_df %>%
   inner_join(host_meta)
 
 # Allow only one hostA-hostB jump per node
-zoo_filt <- zoo_df %>%
-  distinct(anc_state, tip_state, anc_name, clique_name, .keep_all = T)
+iter_list <- zoo_df %>%
+  distinct(anc_state, tip_state, clique_name, anc_name)
+
+set.seed(66)
+
+zoo_filt <- foreach(i = seq(nrow(iter_list)), .combine = "bind_rows") %do% {
+  row <- iter_list[i, ]
+  zoo_df %>%
+    filter(anc_state == row$anc_state, 
+           tip_state == row$tip_state,
+           clique_name == row$clique_name,
+           anc_name == row$anc_name) %>%
+    sample_n(1, replace = F)
+}
 
 # Observed zoonotic proportion
 obs_df <- zoo_filt %>%
@@ -44,6 +56,9 @@ obs_df <- zoo_filt %>%
 zoo_filt %>%
   group_by(event_type, n_traverses) %>%
   summarise(n_jumps = n()) %>%
+  ungroup() %>%
+  complete(n_traverses, event_type, fill = list(n_jumps = 0)) %>%
+  arrange(n_traverses) %>% 
   ggplot(aes(x = n_traverses, y = n_jumps, fill = event_type)) +
   geom_bar(stat = "identity", position = "dodge",
            color = "black") +

@@ -1,7 +1,9 @@
-# Crossing host boundaries: the evolutionary drivers and correlates of viral host jumps
-Authors: Cedric C.S. Tan (cedriccstan@gmail.com), Lucy van Dorp, Francois Balloux
+# The evolutionary drivers and correlates of viral host jumps
+Authors: Cedric C.S. Tan (cedriccstan@gmail.com), Lucy van Dorp & Francois Balloux
 
-DOI: https://doi.org/10.1101/2023.09.01.555953
+Now published in Nature Ecology & Evolution (2024).
+
+Read the paper [here](https://www.nature.com/articles/s41559-024-02353-4) and the accompanying News & Views article [here](https://www.nature.com/articles/s41559-024-02377-w).
 
 ## Clique assignment pipeline
 1. Download sequence metadata from [NCBI Virus](https://www.ncbi.nlm.nih.gov/labs/virus/vssi/#/) (TaxID=10239, excluding provirus, environmental, lab host and vaccine strain sequences).
